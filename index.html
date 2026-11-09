@@ -976,9 +976,9 @@ function pdfRecibo(x){
     const lines=doc.splitTextToSize(txt,w-40);doc.text(lines,20,y0+30,{lineHeightFactor:1.6});
     let y=y0+30+lines.length*6.8+4;doc.text(doc.splitTextToSize('Para clareza, firmo(amos) o presente recibo, dando plena quitação do valor acima.',w-40),20,y);
     doc.text(dt,w-20,y0+92,{align:'right'});
-    doc.line(w/2-50,y0+112,w/2+50,y0+112);doc.setFont('helvetica','bold');doc.text(x.pessoa||'',w/2,y0+117,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(9);
-    doc.text('CPF/CNPJ: '+(x.doc||'______________________________'),w/2,y0+122,{align:'center'});
-    doc.setFontSize(8);doc.setTextColor(110);doc.text(cfg.igreja+' — Tesouraria',20,y0+125);doc.setTextColor(0)};
+    doc.line(w/2-50,y0+110,w/2+50,y0+110);doc.setFont('helvetica','bold');doc.text(x.pessoa||'',w/2,y0+115,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.text('CPF/CNPJ: '+(x.doc||'______________________________'),w/2,y0+120.5,{align:'center'});
+    doc.setTextColor(0)};
   via(10,'1ª via — tesouraria');doc.setLineDashPattern([2,2],0);doc.setLineWidth(.2);doc.line(8,148.5,w-8,148.5);doc.setLineDashPattern([],0);via(156,'2ª via — fornecedor');
   oferecer(`Recibo ${n} - ${(x.pessoa||'fornecedor').replace(/[\\/:*?"<>|]/g,'')}.pdf`,doc.output('arraybuffer'));
 }
