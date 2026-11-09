@@ -300,7 +300,13 @@ function extenso(v){
 
 // ---------- persistência (Supabase) ----------
 const SB_OK=SUPABASE_URL.startsWith('https://')&&SUPABASE_ANON_KEY.length>20&&window.supabase;
-const sb=SB_OK?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
+// Sessão só vale enquanto a aba está aberta: fechou o navegador/aba, pede login de novo.
+try{Object.keys(localStorage).filter(k=>/^sb-.*-auth-token/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
+const sb=SB_OK?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true}}):null;
+// Sai sozinho após 30 minutos sem uso
+const INATIVO_MS=30*60*1000;let inatT;
+function zerarInatividade(){clearTimeout(inatT);if(!jaLogado)return;inatT=setTimeout(async()=>{await sb.auth.signOut();sessionStorage.setItem('obpc-msg','Sessão encerrada após 30 minutos sem uso. Entre novamente.');location.reload()},INATIVO_MS)}
+['click','keydown','mousemove','touchstart','scroll'].forEach(ev=>window.addEventListener(ev,()=>{if(!zerarInatividade._t){zerarInatividade._t=setTimeout(()=>{zerarInatividade._t=0;zerarInatividade()},2000)}},{passive:true}));
 const LSK='obpc-tesouraria-demo';
 const COLS=['tipo','categoria','mes','data','descricao','pessoa','doc','forma','valor','recibo','obs'];
 function lsLoad(){try{const o=JSON.parse(localStorage.getItem(LSK)||'{}');items=o.items||[];cfg={...DEF_CFG,...(o.cfg||{})}}catch(e){}}
@@ -353,6 +359,7 @@ function telaLogin(msg){
 let jaLogado=false;
 async function aposLogin(session){
   if(jaLogado)return;jaLogado=true;
+  zerarInatividade();
   $('#login').hidden=true;$('#sair').hidden=false;$('#sair').title=session.user.email;
   mode='loading';renderBanner();
   try{await carregarTudo();mode='db'}catch(e){mode='db';toast('Erro ao carregar dados: '+(e.message||e))}
@@ -369,7 +376,7 @@ async function init(){
     if(ev==='PASSWORD_RECOVERY'){novaSenha()}
     else if(ev==='SIGNED_IN'&&ses&&!jaLogado)aposLogin(ses);
   });
-  if(session)aposLogin(session);else{mode='loading';renderBanner();telaLogin()}
+  if(session)aposLogin(session);else{mode='loading';renderBanner();const msg=sessionStorage.getItem('obpc-msg');sessionStorage.removeItem('obpc-msg');telaLogin(msg||'')}
 }
 function novaSenha(){
   openModal(`<h3>Definir nova senha</h3><form class="form" id="nsF"><label class="full">Nova senha<input type="password" id="nsS" minlength="6" required></label></form>
@@ -749,6 +756,7 @@ function relAnalitico(m){const r=resumo(m);const grupoE=CAT_E.map(c=>c.n).concat
    <tr><td>Dízimo dos dízimos a pagar em ${MESES[(+m.slice(5))%12]} (10% de dízimos + ofertas)</td><td class="n">${num(r.dizDiz)}</td></tr></tbody></table>
   ${assinaturas()}</div>`;return h}
 function linhasAnuais(ano){return mesesComDados().filter(m=>m.startsWith(ano)).map(m=>{const r=resumo(m);return{m,diz:r.ent['Dízimos']||0,of:r.ent['Ofertas']||0,out:(r.ent['Ofertas especiais']||0)+(r.ent['Outras entradas']||0),te:r.te,ts:r.ts,sm:r.sm,fin:r.fin,n:r.nDiz,r}})}
+function resumoAno(ano){const L=linhasAnuais(ano);const ant=saldoAnterior(ano+'-01');const te=r2(L.reduce((a,x)=>a+x.te,0)),ts=r2(L.reduce((a,x)=>a+x.ts,0));return{ant,te,ts,res:r2(te-ts),fin:r2(ant+te-ts)}}
 function relAnual(ano){const L=linhasAnuais(ano);const s=k=>L.reduce((a,x)=>a+x[k],0);
   const cs=CAT_S.map(c=>c.n);const porCat=cs.map(c=>({c,v:items.filter(x=>x.tipo==='saida'&&x.mes.startsWith(ano)&&x.categoria===c).reduce((a,x)=>a+(+x.valor||0),0)})).filter(x=>x.v>0);
   const ts=s('ts')||1;
@@ -756,6 +764,12 @@ function relAnual(ano){const L=linhasAnuais(ano);const s=k=>L.reduce((a,x)=>a+x[
   <table><thead><tr><th>Mês</th><th style="text-align:right">Dízimos</th><th style="text-align:right">Ofertas</th><th style="text-align:right">Outras</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Saldo mês</th><th style="text-align:right">Saldo final</th></tr></thead><tbody>
   ${L.map(x=>`<tr><td>${MESES[+x.m.slice(5)-1]}</td><td class="n">${num(x.diz)}</td><td class="n">${num(x.of)}</td><td class="n">${num(x.out)}</td><td class="n">${num(x.te)}</td><td class="n">${num(x.ts)}</td><td class="n">${num(x.sm)}</td><td class="n">${num(x.fin)}</td></tr>`).join('')}
   <tr class="tot"><td>Total</td><td class="n">${num(s('diz'))}</td><td class="n">${num(s('of'))}</td><td class="n">${num(s('out'))}</td><td class="n">${num(s('te'))}</td><td class="n">${num(s('ts'))}</td><td class="n">${num(s('sm'))}</td><td class="n">${L.length?num(L[L.length-1].fin):''}</td></tr></tbody></table>
+  ${(()=>{const q=resumoAno(ano);const sg=v=>v<0?' style="color:#c23b3b"':'';return `<table><thead><tr><th>Resumo do ano — ${ano}</th><th style="text-align:right;width:150px">Valor</th></tr></thead><tbody>
+   <tr><td>Acumulado do ano anterior${+ano-1>=+String(cfg.saldoInicialMes).slice(0,4)?' ('+(+ano-1)+')':''}</td><td class="n"${sg(q.ant)}>${num(q.ant)}</td></tr>
+   <tr><td>(+) Entradas totais</td><td class="n">${num(q.te)}</td></tr>
+   <tr><td>(−) Saídas totais</td><td class="n">${num(q.ts)}</td></tr>
+   <tr class="sub"><td>Resultado do ano</td><td class="n"${sg(q.res)}>${num(q.res)}</td></tr>
+   <tr class="tot"><td>Acumulado geral para ${+ano+1}</td><td class="n"${sg(q.fin)}>${num(q.fin)}</td></tr></tbody></table>`})()}
   <table><thead><tr><th>Saídas por categoria — ${ano}</th><th style="text-align:right;width:130px">Valor</th><th style="text-align:right;width:80px">%</th></tr></thead><tbody>
   ${porCat.map(x=>`<tr><td>${esc(x.c)}</td><td class="n">${num(x.v)}</td><td class="n">${(x.v/ts*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</td></tr>`).join('')}</tbody></table>
   <p style="font-size:12.5px">Saldo inicial considerado: ${num(cfg.saldoInicial)} em ${mesNome(cfg.saldoInicialMes)} (saldo depositado do mês anterior).</p></div>`}
@@ -833,6 +847,11 @@ function pdfAnualInto(doc,ano){
     body:L.map(x=>[MESES[+x.m.slice(5)-1],num(x.diz),num(x.of),num(x.out),num(x.te),num(x.ts),num(x.sm),num(x.fin)]),
     foot:[['Total',num(s('diz')),num(s('of')),num(s('out')),num(s('te')),num(s('ts')),num(s('sm')),L.length?num(L[L.length-1].fin):'']],
     columnStyles:{1:right,2:right,3:right,4:right,5:right,6:right,7:right},footStyles:{fillColor:[234,238,246],textColor:[31,63,120],halign:'right'}});
+  const q=resumoAno(ano);
+  doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,head:[['Resumo do ano — '+ano,'Valor']],columnStyles:{1:{halign:'right',cellWidth:40}},body:[
+    ['Acumulado do ano anterior',num(q.ant)],['(+) Entradas totais',num(q.te)],['(−) Saídas totais',num(q.ts)],['Resultado do ano',num(q.res)],['Acumulado geral para '+(+ano+1),num(q.fin)]],
+    didParseCell:d=>{if(d.section==='body'&&d.row.index>=3){d.cell.styles.fontStyle='bold';if(d.row.index===4){d.cell.styles.fillColor=[234,238,246];d.cell.styles.textColor=[31,63,120]}}
+      if(d.section==='body'&&d.column.index===1){const v=[q.ant,q.te,q.ts,q.res,q.fin][d.row.index];if(v<0&&d.row.index!==2&&d.row.index!==1)d.cell.styles.textColor=[194,59,59]}}});
   const porCat=CAT_S.map(c=>[c.n,items.filter(x=>x.tipo==='saida'&&x.mes.startsWith(ano)&&x.categoria===c.n).reduce((a,x)=>a+(+x.valor||0),0)]).filter(x=>x[1]>0);
   doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,head:[['Saídas por categoria','Valor']],body:porCat.map(x=>[x[0],num(x[1])]),columnStyles:{1:right}});
 }
