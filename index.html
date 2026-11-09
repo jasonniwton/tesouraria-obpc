@@ -151,6 +151,10 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .alerts li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
 .alerts li:last-child{border-bottom:0}
 .alerts li button{flex:none}
+.alerts li .acts{display:flex;gap:6px;flex:none}
+details.disp{margin-top:10px;font-size:13.5px}
+details.disp summary{cursor:pointer;color:var(--ink2)}
+details.disp .alerts li{font-size:13.5px}
 table.t tr.hl td{background:rgba(255,223,0,.22)}
 table.t tr.hl td:first-child{box-shadow:inset 3px 0 0 #e0b800}
 
@@ -428,12 +432,12 @@ function pendencias(){
   for(const m of Object.keys(byMes).sort()){
     const seen={};
     byMes[m].filter(x=>x.categoria==='Dízimos').forEach(x=>{const k=(x.pessoa||'').toUpperCase()+'|'+x.valor;
-      if(seen[k])out.push({t:`${mesNome(m)}: dízimo de <b>${esc(x.pessoa)}</b> (${brl(x.valor)}) aparece duas vezes — confira se é repetido.`,mes:m,ids:[seen[k],x.id]});
+      if(seen[k])out.push({k:'dup|'+[seen[k],x.id].sort().join(','),t:`${mesNome(m)}: dízimo de <b>${esc(x.pessoa)}</b> (${brl(x.valor)}) aparece duas vezes — confira se é repetido.`,mes:m,ids:[seen[k],x.id]});
       else seen[k]=x.id});
-    byMes[m].filter(x=>/sem descrição/i.test(x.descricao||'')).forEach(x=>out.push({t:`${mesNome(m)}: entrada de ${brl(x.valor)} sem descrição.`,mes:m,ids:[x.id]}));
+    byMes[m].filter(x=>/sem descrição/i.test(x.descricao||'')).forEach(x=>out.push({k:'sd|'+x.id,t:`${mesNome(m)}: entrada de ${brl(x.valor)} sem descrição.`,mes:m,ids:[x.id]}));
     const pm=prevMes(m);if(byMes[pm]&&m<=mesAtual()){
       const esperado=resumo(pm).dizDiz;const pg=byMes[m].filter(x=>/d[íi]zimo dos d[íi]zimos/i.test(x.descricao||''));const pago=pg.reduce((a,x)=>a+(+x.valor||0),0);
-      if(m<mesAtual()&&Math.abs(pago-esperado)>0.05)out.push({t:`${mesNome(m)}: dízimo dos dízimos pago ${brl(pago)}; 10% de ${mesNome(pm)} seria ${brl(esperado)}.`,mes:m,ids:pg.map(x=>x.id),tipo:pg.length?'':'saida'});
+      if(m<mesAtual()&&Math.abs(pago-esperado)>0.05)out.push({k:'dd|'+m+'|'+pago.toFixed(2)+'|'+esperado.toFixed(2),t:`${mesNome(m)}: dízimo dos dízimos pago ${brl(pago)}; 10% de ${mesNome(pm)} seria ${brl(esperado)}.`,mes:m,ids:pg.map(x=>x.id),tipo:pg.length?'':'saida'});
     }
   }
   return out;
@@ -462,7 +466,7 @@ function rInicio(){
   S.mesIni=S.mesIni||mesAtual();
   const m=S.mesIni,ano=m.slice(0,4),atual=mesAtual();const r=resumo(m);const ms=mesesComDados();
   const comDados=new Set(items.map(x=>x.mes));
-  const pend=pendencias();
+  const ign=new Set(cfg.ignorados||[]);const todasPend=pendencias();const pend=todasPend.filter(p=>!ign.has(p.k));const dispensadas=todasPend.filter(p=>ign.has(p.k));
   const lista=doMes(m).sort(ord);
   const anos=anosDisponiveis();
   $('#v-inicio').innerHTML=`
@@ -501,7 +505,12 @@ function rInicio(){
     <div class="card"><h3>Saldo em depósito ao fim de cada mês — ${ano}</h3><div class="chart" id="ch2"></div></div>
   </div>
   <div class="card" style="margin-top:14px"><h3>Pontos de atenção</h3>
-   ${pend.length?'<ul class="alerts">'+pend.map((p,i)=>`<li><span>${p.t}</span><button class="btn sm" data-pend="${i}">Ver lançamento →</button></li>`).join('')+'</ul>':'<p class="muted">Nenhuma pendência encontrada.</p>'}</div>`;
+   ${pend.length?'<ul class="alerts">'+pend.map((p,i)=>`<li><span>${p.t}</span><span class="acts"><button class="btn sm" data-pend="${i}">Ver lançamento →</button><button class="btn sm" data-disp="${i}" title="Considerado pelo administrador — tirar da lista">Dispensar</button></span></li>`).join('')+'</ul>':'<p class="muted">Nenhuma pendência encontrada.</p>'}
+   ${dispensadas.length?`<details class="disp"><summary>${dispensadas.length} ponto(s) dispensado(s)</summary><ul class="alerts">${dispensadas.map((p,i)=>`<li><span class="muted">${p.t}</span><button class="btn sm" data-rest="${i}">Restaurar</button></li>`).join('')}</ul></details>`:''}</div>`;
+  $('#v-inicio').querySelectorAll('[data-disp]').forEach(b=>b.onclick=async()=>{const p=pend[+b.dataset.disp];b.disabled=true;
+    try{await salvarCfg({ignorados:[...new Set([...(cfg.ignorados||[]),p.k])]});toast('Ponto de atenção dispensado')}catch(e){b.disabled=false;toast('Não foi possível dispensar')}});
+  $('#v-inicio').querySelectorAll('[data-rest]').forEach(b=>b.onclick=async()=>{const p=dispensadas[+b.dataset.rest];b.disabled=true;
+    try{await salvarCfg({ignorados:(cfg.ignorados||[]).filter(k=>k!==p.k)});toast('Ponto de atenção restaurado')}catch(e){b.disabled=false;toast('Não foi possível restaurar')}});
   $('#v-inicio').querySelectorAll('[data-pend]').forEach(b=>b.onclick=()=>irParaPendencia(pend[+b.dataset.pend]));
   const v=$('#v-inicio');
   v.querySelectorAll('[data-ano]').forEach(b=>b.onclick=()=>{const a=b.dataset.ano;
