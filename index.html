@@ -475,8 +475,8 @@ function bindRowActions(root){
 function confirmDel(id){
   const x=items.find(i=>i.id===id);if(!x)return;
   openModal(`<h3>Excluir lançamento?</h3><p>${esc(x.descricao)} — <b>${brl(x.valor)}</b> (${mesNome(x.mes)})</p><p class="muted">Essa ação não pode ser desfeita.</p>
-  <div class="mfoot"><button class="btn" id="cN">Cancelar</button><button class="btn pri" id="cS" style="background:var(--bad);border-color:var(--bad)">Excluir</button></div>`);
-  $('#cN').onclick=closeModal;$('#cS').onclick=async()=>{try{await excluirItem(id);closeModal();toast('Lançamento excluído')}catch(e){toast('Não foi possível excluir')}};
+  <div class="mfoot"><button class="btn" id="confN">Cancelar</button><button class="btn pri" id="confS" style="background:var(--bad);border-color:var(--bad)">Excluir</button></div>`);
+  $('#confN').onclick=closeModal;$('#confS').onclick=async()=>{try{await excluirItem(id);closeModal();toast('Lançamento excluído')}catch(e){toast('Não foi possível excluir')}};
 }
 
 // ---------- assistente de lançamento ----------
@@ -588,17 +588,17 @@ function reciboHTML(x){
 }
 function mostrarRecibo(x){
   openModal(`<h3>Recibo nº ${String(x.recibo).padStart(4,'0')}</h3><div style="max-height:60vh;overflow:auto;margin:10px -6px">${reciboHTML(x)}</div>
-   <div class="mfoot"><button class="btn danger" id="rX">Excluir recibo</button><span class="sp"></span><button class="btn" id="rF">Fechar</button><button class="btn" id="rI">Imprimir</button><button class="btn pri" id="rP">Baixar PDF</button></div>`);
-  $('#rF').onclick=closeModal;$('#rX').onclick=()=>confirmExcluirRecibo(x.id);$('#rP').onclick=()=>pdfRecibo(x);$('#rI').onclick=()=>imprimir($('#modal .paper'));
+   <div class="mfoot"><button class="btn danger" id="recX">Excluir recibo</button><span class="sp"></span><button class="btn" id="recF">Fechar</button><button class="btn" id="recI">Imprimir</button><button class="btn pri" id="recP">Baixar PDF</button></div>`);
+  $('#recF').onclick=closeModal;$('#recX').onclick=()=>confirmExcluirRecibo(x.id);$('#recP').onclick=()=>pdfRecibo(x);$('#recI').onclick=()=>imprimir($('#modal .paper'));
   $('#modal').style.maxWidth='860px';
 }
 function confirmExcluirRecibo(id){
   const x=items.find(i=>i.id===id);if(!x||!x.recibo)return;const n=String(x.recibo).padStart(4,'0');
   openModal(`<h3>Excluir o recibo nº ${n}?</h3><p>${esc(x.descricao)}${x.pessoa?' — '+esc(x.pessoa):''} — <b>${brl(x.valor)}</b> (${mesNome(x.mes)})</p>
   <p class="muted">Só o recibo é excluído: a saída continua lançada no caixa e entra nos relatórios normalmente. Se precisar, dá para gerar um recibo novo depois.</p>
-  <div class="mfoot"><button class="btn" id="cN">Cancelar</button><button class="btn pri" id="cS" style="background:var(--bad);border-color:var(--bad)">Excluir recibo</button></div>`);
-  $('#cN').onclick=closeModal;
-  $('#cS').onclick=async()=>{const d={...x};delete d.id;delete d.recibo;
+  <div class="mfoot"><button class="btn" id="confN">Cancelar</button><button class="btn pri" id="confS" style="background:var(--bad);border-color:var(--bad)">Excluir recibo</button></div>`);
+  $('#confN').onclick=closeModal;
+  $('#confS').onclick=async()=>{const d={...x};delete d.id;delete d.recibo;
     try{await salvarItem(id,d);closeModal();toast('Recibo nº '+n+' excluído')}catch(e){toast('Não foi possível excluir o recibo')}};
 }
 async function abrirRecibo(id){
