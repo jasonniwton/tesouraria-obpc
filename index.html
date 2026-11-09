@@ -132,6 +132,15 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper .via{font-size:11px;color:#666;text-align:right}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;display:none}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
+.menu{grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.menu .mbtn{padding:10px 12px;gap:10px;min-width:0}
+.menu .mbtn .ic{width:32px;height:32px;font-size:16px;border-radius:8px}
+.menu .mbtn b{font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menu .mbtn small{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.menu .mbtn>span:last-child{min-width:0}
+@media (max-width:980px){.menu{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){.menu{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 .alerts{padding-left:0;list-style:none;margin:0}
 .alerts li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
 .alerts li:last-child{border-bottom:0}
@@ -433,12 +442,12 @@ function rInicio(){
   </div>
   <h2>O que você quer fazer em ${mesNome(m)}?</h2>
   <div class="grid menu">
-    <button class="mbtn" data-a="nova-e"><span class="ic in">+</span><span><b>Nova entrada</b><small>Dízimo, oferta, campanha</small></span></button>
-    <button class="mbtn" data-a="nova-s"><span class="ic out">−</span><span><b>Nova saída</b><small>Despesa com recibo</small></span></button>
-    <button class="mbtn" data-a="dizimos"><span class="ic in">≡</span><span><b>Lançar dízimos do culto</b><small>Um após o outro</small></span></button>
-    <button class="mbtn" data-a="rel"><span class="ic neu">▤</span><span><b>Relatório de ${MESES[+m.slice(5)-1]}</b><small>Analítico ou resumido</small></span></button>
-    <button class="mbtn" data-a="recibo"><span class="ic neu">✎</span><span><b>Recibos</b><small>Emitir e reimprimir</small></span></button>
-    <button class="mbtn" data-a="xlsx"><span class="ic neu">⇩</span><span><b>Exportar Excel</b><small>Ano de ${ano}</small></span></button>
+    <button class="mbtn" data-a="nova-e"><span class="ic in">+</span><span><b>Nova entrada</b><small>Dízimo, oferta</small></span></button>
+    <button class="mbtn" data-a="nova-s"><span class="ic out">−</span><span><b>Nova saída</b><small>Com recibo</small></span></button>
+    <button class="mbtn" data-a="dizimos"><span class="ic in">≡</span><span><b>Dízimos</b><small>Em sequência</small></span></button>
+    <button class="mbtn" data-a="rel"><span class="ic neu">▤</span><span><b>Relatório</b><small>${MESES[+m.slice(5)-1]}</small></span></button>
+    <button class="mbtn" data-a="recibo"><span class="ic neu">✎</span><span><b>Recibos</b><small>Emitir, reimprimir</small></span></button>
+    <button class="mbtn" data-a="xlsx"><span class="ic neu">⇩</span><span><b>Excel</b><small>Ano de ${ano}</small></span></button>
   </div>
   <div class="card tablewrap" style="margin-top:22px"><h3>Lançamentos de ${mesNome(m)}</h3>
   ${lista.length?`<table class="t"><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Pessoa / Fornecedor</th><th class="n">Valor</th><th></th></tr></thead><tbody>
