@@ -132,6 +132,17 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper .via{font-size:11px;color:#666;text-align:right}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;display:none}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
+.salmo{display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,rgba(0,156,59,.07),rgba(255,223,0,.10),rgba(0,39,118,.06)),var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px}
+.salmo .sic{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(255,223,0,.22);color:#7a6a10;font-size:18px}
+.salmo .stx{flex:1;transition:opacity .6s}
+.salmo .stx.fade{opacity:0}
+.salmo q{font-style:italic;font-size:15.5px;color:var(--ink);quotes:"“" "”"}
+.salmo .sref{display:block;font-size:12.5px;color:var(--ink2);margin-top:3px;font-weight:600}
+.salmo .snav{flex:none;display:flex;gap:4px}
+.salmo .snav button{border:1px solid var(--line);background:transparent;border-radius:8px;width:30px;height:30px;cursor:pointer;color:var(--ink2)}
+.salmo .snav button:hover{border-color:rgba(0,156,59,.45)}
+@media print{.salmo{display:none}}
+
 .periodo{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px}
 .pills{display:flex;gap:6px;flex-wrap:wrap}
 .pills button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:500;color:var(--ink2);position:relative}
@@ -186,6 +197,8 @@ table.t tfoot td{font-weight:650;border-bottom:0}
   <div id="lgMsg"></div>
 </form></div>
 <main>
+  <div class="salmo" id="salmo" aria-live="polite"><span class="sic">✦</span><div class="stx" id="salmoTx"></div>
+    <div class="snav"><button type="button" id="salmoAnt" title="Salmo anterior">‹</button><button type="button" id="salmoProx" title="Próximo salmo">›</button></div></div>
   <div id="banner"></div>
   <section id="v-inicio"></section>
   <section id="v-lancamentos" hidden></section>
@@ -854,6 +867,17 @@ function exportXlsx(){
 }
 
 $('#lgLogo').src=LOGO_PADRAO;
+
+// ---------- salmo (troca a cada 5 minutos) ----------
+const SALMOS=[["23:1", "O Senhor é o meu pastor; nada me faltará."], ["46:1", "Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia."], ["27:1", "O Senhor é a minha luz e a minha salvação; a quem temerei? O Senhor é a força da minha vida; de quem me recearei?"], ["121:1-2", "Levantarei os meus olhos para os montes, de onde vem o meu socorro. O meu socorro vem do Senhor, que fez o céu e a terra."], ["91:1", "Aquele que habita no esconderijo do Altíssimo, à sombra do Onipotente descansará."], ["37:5", "Entrega o teu caminho ao Senhor; confia nele, e ele tudo fará."], ["119:105", "Lâmpada para os meus pés é tua palavra e luz, para o meu caminho."], ["118:24", "Este é o dia que fez o Senhor; regozijemo-nos e alegremo-nos nele."], ["100:4", "Entrai pelas portas dele com louvor e em seus átrios, com hinos; louvai-o e bendizei o seu nome."], ["34:8", "Provai e vede que o Senhor é bom; bem-aventurado o homem que nele confia."], ["103:2", "Bendize, ó minha alma, ao Senhor, e não te esqueças de nenhum de seus benefícios."], ["150:6", "Tudo quanto tem fôlego louve ao Senhor. Louvai ao Senhor!"], ["37:4", "Deleita-te também no Senhor, e ele te concederá o que deseja o teu coração."], ["55:22", "Lança o teu cuidado sobre o Senhor, e ele te susterá; não permitirá jamais que o justo seja abalado."], ["90:12", "Ensina-nos a contar os nossos dias, de tal maneira que alcancemos coração sábio."], ["133:1", "Oh! Quão bom e quão suave é que os irmãos vivam em união!"], ["127:1", "Se o Senhor não edificar a casa, em vão trabalham os que a edificam."], ["24:1", "Do Senhor é a terra e a sua plenitude, o mundo e aqueles que nele habitam."], ["51:10", "Cria em mim, ó Deus, um coração puro e renova em mim um espírito reto."], ["62:1", "A minha alma espera somente em Deus; dele vem a minha salvação."], ["96:1", "Cantai ao Senhor um cântico novo; cantai ao Senhor toda a terra."], ["107:1", "Louvai ao Senhor, porque ele é bom, porque a sua benignidade dura para sempre."], ["145:18", "Perto está o Senhor de todos os que o invocam, de todos os que o invocam em verdade."], ["147:3", "Sara os quebrantados de coração e lhes ata as suas feridas."], ["19:1", "Os céus manifestam a glória de Deus, e o firmamento anuncia a obra das suas mãos."], ["4:8", "Em paz também me deitarei e dormirei, porque só tu, Senhor, me fazes habitar em segurança."], ["32:8", "Instruir-te-ei e ensinar-te-ei o caminho que deves seguir; guiar-te-ei com os meus olhos."], ["40:1", "Esperei com paciência no Senhor, e ele se inclinou para mim e ouviu o meu clamor."], ["56:3", "Em qualquer tempo em que eu temer, confiarei em ti."], ["41:1", "Bem-aventurado é aquele que atende ao pobre; o Senhor o livrará no dia do mal."], ["116:12", "Que darei eu ao Senhor por todos os benefícios que me tem feito?"], ["136:1", "Louvai ao Senhor, porque ele é bom; porque a sua benignidade é para sempre."], ["84:10", "Porque vale mais um dia nos teus átrios do que, em outra parte, mil."], ["37:21", "O ímpio toma emprestado e não paga, mas o justo se compadece e dá."], ["16:11", "Far-me-ás ver a vereda da vida; na tua presença há abundância de alegrias; à tua mão direita há delícias perpetuamente."], ["121:8", "O Senhor guardará a tua entrada e a tua saída, desde agora e para sempre."]];
+const SALMO_MS=5*60*1000;let salmoDesloc=0,salmoAtual=-1;
+function salmoIdx(){const n=SALMOS.length;return ((Math.floor(Date.now()/SALMO_MS)+salmoDesloc)%n+n)%n}
+function mostrarSalmo(forcar){const i=salmoIdx();if(i===salmoAtual&&!forcar)return;salmoAtual=i;const [ref,txt]=SALMOS[i];const el=$('#salmoTx');
+  const pinta=()=>{el.innerHTML=`<q>${txt}</q><span class="sref">Salmos ${ref}</span>`;el.classList.remove('fade')};
+  if(el.innerHTML){el.classList.add('fade');setTimeout(pinta,600)}else pinta()}
+$('#salmoProx').onclick=()=>{salmoDesloc++;mostrarSalmo(true)};
+$('#salmoAnt').onclick=()=>{salmoDesloc--;mostrarSalmo(true)};
+mostrarSalmo();setInterval(mostrarSalmo,15000);
 setView((location.hash||'#inicio').slice(1)||'inicio');
 init();
 </script>
