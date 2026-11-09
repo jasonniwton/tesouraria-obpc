@@ -132,6 +132,12 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper .via{font-size:11px;color:#666;text-align:right}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;display:none}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
+.form .check{flex-direction:row;align-items:center;gap:10px;color:var(--ink);font-size:14.5px}
+.form .check input{width:18px;height:18px}
+#pacotePrint{position:absolute;left:-99999px;top:0;width:820px}
+#pacotePrint .paper{box-shadow:none;border:0;margin:0 0 20px}
+@media print{#pacotePrint .paper{break-after:page;page-break-after:always;max-width:none;padding:0}#pacotePrint .paper:last-child{break-after:auto;page-break-after:auto}}
+
 .menu{grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
 .menu .mbtn{padding:10px 12px;gap:10px;min-width:0}
 .menu .mbtn .ic{width:32px;height:32px;font-size:16px;border-radius:8px}
@@ -758,11 +764,11 @@ function rRel(){
   $('#v-relatorios').innerHTML=`<div class="toolbar">
    <div class="seg" id="rT"><button data-t="resumido" class="${S.relTipo==='resumido'?'on':''}">Resumido</button><button data-t="analitico" class="${S.relTipo==='analitico'?'on':''}">Analítico</button><button data-t="anual" class="${S.relTipo==='anual'?'on':''}">Anual</button></div>
    ${S.relTipo==='anual'?`<select id="rA">${anos.map(a=>`<option ${a===S.anoRel?'selected':''}>${a}</option>`).join('')}</select>`:`<select id="rM">${mesOptions(S.mesRel)}</select>`}
-   <span class="sp"></span><button class="btn" id="rI">Imprimir</button><button class="btn" id="rX">Baixar Excel</button><button class="btn pri" id="rP">Baixar PDF</button></div>
+   <span class="sp"></span><button class="btn" id="rPk">Ano inteiro…</button><button class="btn" id="rI">Imprimir</button><button class="btn" id="rX">Baixar Excel</button><button class="btn pri" id="rP">Baixar PDF</button></div>
    <div id="rBody">${S.relTipo==='resumido'?relResumido(S.mesRel):S.relTipo==='analitico'?relAnalitico(S.mesRel):relAnual(S.anoRel)}</div>`;
   $('#rT').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.relTipo=b.dataset.t;rRel()});
   if($('#rM'))$('#rM').onchange=e=>{S.mesRel=e.target.value;rRel()};if($('#rA'))$('#rA').onchange=e=>{S.anoRel=e.target.value;rRel()};
-  $('#rP').onclick=()=>pdfRelatorio();$('#rI').onclick=()=>imprimir($('#rBody .paper'));$('#rX').onclick=()=>exportXlsx();
+  $('#rPk').onclick=abrirPacote;$('#rP').onclick=()=>pdfRelatorio();$('#rI').onclick=()=>imprimir($('#rBody .paper'));$('#rX').onclick=()=>exportXlsx();
 }
 
 // ---------- configurações ----------
@@ -821,20 +827,17 @@ function pdfAss(doc,y){const w=doc.internal.pageSize.getWidth();if(y>250){doc.ad
   doc.line(20,y+34,95,y+34);doc.line(w-95,y+34,w-20,y+34);doc.setFontSize(9);
   doc.text((cfg.dirigente?cfg.dirigente+' — ':'')+'Assinatura do dirigente',57.5,y+39,{align:'center'});doc.text((cfg.tesoureiro?cfg.tesoureiro+' — ':'')+'Assinatura do tesoureiro',w-57.5,y+39,{align:'center'})}
 const AT={theme:'grid',styles:{fontSize:9,cellPadding:1.6,lineColor:[200,200,200]},headStyles:{fillColor:[224,242,230],textColor:[29,90,53],fontStyle:'bold'},lineColor:[217,230,221],margin:{left:14,right:14}};
-function pdfRelatorio(){
-  if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
-  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const t=S.relTipo;let y;
-  const right={halign:'right'};
-  if(t==='anual'){y=pdfCab(doc,null,'Fluxo de caixa consolidado — '+S.anoRel);const L=linhasAnuais(S.anoRel);const s=k=>L.reduce((a,x)=>a+x[k],0);
-    doc.autoTable({...AT,startY:y,head:[['Mês','Dízimos','Ofertas','Outras','Entradas','Saídas','Saldo mês','Saldo final']],
-      body:L.map(x=>[MESES[+x.m.slice(5)-1],num(x.diz),num(x.of),num(x.out),num(x.te),num(x.ts),num(x.sm),num(x.fin)]),
-      foot:[['Total',num(s('diz')),num(s('of')),num(s('out')),num(s('te')),num(s('ts')),num(s('sm')),L.length?num(L[L.length-1].fin):'']],
-      columnStyles:{1:right,2:right,3:right,4:right,5:right,6:right,7:right},footStyles:{fillColor:[234,238,246],textColor:[31,63,120],halign:'right'}});
-    const porCat=CAT_S.map(c=>[c.n,items.filter(x=>x.tipo==='saida'&&x.mes.startsWith(S.anoRel)&&x.categoria===c.n).reduce((a,x)=>a+(+x.valor||0),0)]).filter(x=>x[1]>0);
-    doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,head:[['Saídas por categoria','Valor']],body:porCat.map(x=>[x[0],num(x[1])]),columnStyles:{1:right}});
-    return oferecer(`Fluxo de caixa ${S.anoRel}.pdf`,doc.output('arraybuffer'));
-  }
-  const m=S.mesRel,r=resumo(m);
+function pdfAnualInto(doc,ano){
+  const right={halign:'right'};const y=pdfCab(doc,null,'Fluxo de caixa consolidado — '+ano);const L=linhasAnuais(ano);const s=k=>L.reduce((a,x)=>a+x[k],0);
+  doc.autoTable({...AT,startY:y,head:[['Mês','Dízimos','Ofertas','Outras','Entradas','Saídas','Saldo mês','Saldo final']],
+    body:L.map(x=>[MESES[+x.m.slice(5)-1],num(x.diz),num(x.of),num(x.out),num(x.te),num(x.ts),num(x.sm),num(x.fin)]),
+    foot:[['Total',num(s('diz')),num(s('of')),num(s('out')),num(s('te')),num(s('ts')),num(s('sm')),L.length?num(L[L.length-1].fin):'']],
+    columnStyles:{1:right,2:right,3:right,4:right,5:right,6:right,7:right},footStyles:{fillColor:[234,238,246],textColor:[31,63,120],halign:'right'}});
+  const porCat=CAT_S.map(c=>[c.n,items.filter(x=>x.tipo==='saida'&&x.mes.startsWith(ano)&&x.categoria===c.n).reduce((a,x)=>a+(+x.valor||0),0)]).filter(x=>x[1]>0);
+  doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,head:[['Saídas por categoria','Valor']],body:porCat.map(x=>[x[0],num(x[1])]),columnStyles:{1:right}});
+}
+function pdfMesInto(doc,m,t){
+  const r=resumo(m);let y;
   if(t==='resumido'){y=pdfCab(doc,m,'Relatório mensal');
     doc.autoTable({...AT,startY:y,head:[['Discriminação das despesas','Valor']],body:r.said.map(x=>[x.descricao,num(x.valor)]),foot:[['Total das despesas',num(r.ts)]],columnStyles:{1:{halign:'right',cellWidth:35}},footStyles:{fillColor:[234,238,246],textColor:[31,63,120]}});
     doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,head:[['Resumo simplificado','Valor']],columnStyles:{1:{halign:'right',cellWidth:35}},body:[
@@ -855,7 +858,57 @@ function pdfRelatorio(){
       didParseCell:d=>{if(d.row.index===3)d.cell.styles.fontStyle='bold'}});
   }
   pdfAss(doc,doc.lastAutoTable.finalY+4);
-  oferecer(`Relatório ${t==='resumido'?'resumido':'analítico'} ${mesNome(m).replace('/',' ')}.pdf`,doc.output('arraybuffer'));
+}
+function pdfRelatorio(){
+  if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const t=S.relTipo;
+  if(t==='anual'){pdfAnualInto(doc,S.anoRel);return oferecer(`Fluxo de caixa ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
+  pdfMesInto(doc,S.mesRel,t);
+  oferecer(`Relatório ${t==='resumido'?'resumido':'analítico'} ${mesNome(S.mesRel).replace('/',' ')}.pdf`,doc.output('arraybuffer'));
+}
+// ---------- pacote: vários relatórios de uma vez ----------
+function mesesDoAno(a){return [...new Set(items.map(x=>x.mes))].filter(m=>m&&m.startsWith(a)).sort()}
+function anosComDados(){return [...new Set(items.map(x=>x.mes.slice(0,4)))].sort()}
+function pacoteLista(o){
+  const anos=o.ano==='todos'?anosComDados():[o.ano];const out=[];
+  anos.forEach(a=>{const ms=mesesDoAno(a);if(!ms.length)return;
+    if(o.anual)out.push({k:'anual',a});
+    ms.forEach(m=>{if(o.res)out.push({k:'resumido',m});if(o.ana)out.push({k:'analitico',m})})});
+  return out;
+}
+function abrirPacote(){
+  const anos=anosComDados();const def=S.anoRel&&anos.includes(S.anoRel)?S.anoRel:(S.mesRel||mesAtual()).slice(0,4);
+  const podeImprimir=typeof imprimir==='function';
+  openModal(`<h3>Relatórios do ano de uma vez</h3>
+  <form class="form" id="pkF">
+    <label class="full">Período<select name="ano">${anos.map(a=>`<option value="${a}" ${a===def?'selected':''}>Ano de ${a}</option>`).join('')}${anos.length>1?'<option value="todos">Todos os anos</option>':''}</select></label>
+    <div class="full" style="display:flex;flex-direction:column;gap:8px">
+      <label class="check" style="margin:0"><input type="checkbox" name="anual" checked> Consolidado anual (resumo do ano)</label>
+      <label class="check" style="margin:0"><input type="checkbox" name="res" checked> Resumido de cada mês</label>
+      <label class="check" style="margin:0"><input type="checkbox" name="ana" checked> Analítico de cada mês</label>
+    </div>
+  </form>
+  <p class="muted" id="pkInfo" style="font-size:13px;margin-top:10px"></p>
+  <div class="mfoot"><button class="btn" id="pkC">Cancelar</button>${podeImprimir?'<button class="btn" id="pkI">Imprimir</button>':''}<button class="btn pri" id="pkP">Baixar PDF</button></div>`);
+  const f=$('#pkF');const opt=()=>({ano:f.ano.value,anual:f.anual.checked,res:f.res.checked,ana:f.ana.checked});
+  const info=()=>{const n=pacoteLista(opt()).length;$('#pkInfo').textContent=n?`${n} relatório(s) num único arquivo, cada um começando numa página nova.`:'Marque pelo menos uma opção.'};
+  f.onchange=info;info();
+  $('#pkC').onclick=closeModal;
+  $('#pkP').onclick=()=>{const l=pacoteLista(opt());if(!l.length)return;pdfPacote(l,opt())};
+  if($('#pkI'))$('#pkI').onclick=()=>{const l=pacoteLista(opt());if(!l.length)return;imprimirPacote(l)};
+}
+function pdfPacote(lista,o){
+  if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+  lista.forEach((r,i)=>{if(i)doc.addPage();if(r.k==='anual')pdfAnualInto(doc,r.a);else pdfMesInto(doc,r.m,r.k)});
+  const tot=doc.getNumberOfPages();for(let p=1;p<=tot;p++){doc.setPage(p);doc.setFontSize(8);doc.setTextColor(120);doc.text(`Página ${p} de ${tot}`,doc.internal.pageSize.getWidth()-14,290,{align:'right'});doc.setTextColor(0)}
+  const nome=o.ano==='todos'?'todos os anos':o.ano;
+  oferecer(`Relatórios ${nome}.pdf`,doc.output('arraybuffer'));
+}
+function imprimirPacote(lista){
+  let box=$('#pacotePrint');if(!box){box=document.createElement('div');box.id='pacotePrint';document.body.appendChild(box)}
+  box.innerHTML=lista.map(r=>r.k==='anual'?relAnual(r.a):r.k==='resumido'?relResumido(r.m):relAnalitico(r.m)).join('');
+  closeModal();setTimeout(()=>imprimir(box),50);
 }
 function pdfRecibo(x){
   if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
