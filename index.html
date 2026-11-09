@@ -132,6 +132,13 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper .via{font-size:11px;color:#666;text-align:right}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;display:none}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
+.alerts{padding-left:0;list-style:none;margin:0}
+.alerts li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.alerts li:last-child{border-bottom:0}
+.alerts li button{flex:none}
+table.t tr.hl td{background:rgba(255,223,0,.22)}
+table.t tr.hl td:first-child{box-shadow:inset 3px 0 0 #e0b800}
+
 .salmo{display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,rgba(0,156,59,.07),rgba(255,223,0,.10),rgba(0,39,118,.06)),var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px}
 .salmo .sic{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(255,223,0,.22);color:#7a6a10;font-size:18px}
 .salmo .stx{flex:1;transition:opacity .6s}
@@ -374,14 +381,20 @@ function pendencias(){
   items.forEach(x=>{(byMes[x.mes]=byMes[x.mes]||[]).push(x)});
   for(const m of Object.keys(byMes).sort()){
     const seen={};
-    byMes[m].filter(x=>x.categoria==='Dízimos').forEach(x=>{const k=(x.pessoa||'').toUpperCase()+'|'+x.valor;if(seen[k])out.push(`${mesNome(m)}: dízimo de <b>${esc(x.pessoa)}</b> (${brl(x.valor)}) aparece duas vezes — confira se é repetido.`);seen[k]=1});
-    byMes[m].filter(x=>/sem descrição/i.test(x.descricao||'')).forEach(x=>out.push(`${mesNome(m)}: entrada de ${brl(x.valor)} sem descrição.`));
+    byMes[m].filter(x=>x.categoria==='Dízimos').forEach(x=>{const k=(x.pessoa||'').toUpperCase()+'|'+x.valor;
+      if(seen[k])out.push({t:`${mesNome(m)}: dízimo de <b>${esc(x.pessoa)}</b> (${brl(x.valor)}) aparece duas vezes — confira se é repetido.`,mes:m,ids:[seen[k],x.id]});
+      else seen[k]=x.id});
+    byMes[m].filter(x=>/sem descrição/i.test(x.descricao||'')).forEach(x=>out.push({t:`${mesNome(m)}: entrada de ${brl(x.valor)} sem descrição.`,mes:m,ids:[x.id]}));
     const pm=prevMes(m);if(byMes[pm]&&m<=mesAtual()){
-      const esperado=resumo(pm).dizDiz;const pago=byMes[m].filter(x=>/d[íi]zimo dos d[íi]zimos/i.test(x.descricao||'')).reduce((a,x)=>a+(+x.valor||0),0);
-      if(m<mesAtual()&&Math.abs(pago-esperado)>0.05)out.push(`${mesNome(m)}: dízimo dos dízimos pago ${brl(pago)}; 10% de ${mesNome(pm)} seria ${brl(esperado)}.`);
+      const esperado=resumo(pm).dizDiz;const pg=byMes[m].filter(x=>/d[íi]zimo dos d[íi]zimos/i.test(x.descricao||''));const pago=pg.reduce((a,x)=>a+(+x.valor||0),0);
+      if(m<mesAtual()&&Math.abs(pago-esperado)>0.05)out.push({t:`${mesNome(m)}: dízimo dos dízimos pago ${brl(pago)}; 10% de ${mesNome(pm)} seria ${brl(esperado)}.`,mes:m,ids:pg.map(x=>x.id),tipo:pg.length?'':'saida'});
     }
   }
   return out;
+}
+function irParaPendencia(p){
+  S.mesLanc=p.mes;S.tipoLanc=p.tipo||'';S.busca='';S.destaque=new Set(p.ids||[]);S.rolarDestaque=true;
+  if(location.hash==='#lancamentos')setView('lancamentos');else location.hash='#lancamentos';
 }
 
 // ---------- render ----------
@@ -442,7 +455,8 @@ function rInicio(){
     <div class="card"><h3>Saldo em depósito ao fim de cada mês — ${ano}</h3><div class="chart" id="ch2"></div></div>
   </div>
   <div class="card" style="margin-top:14px"><h3>Pontos de atenção</h3>
-   ${pend.length?'<ul class="alerts">'+pend.map(p=>'<li>'+p+'</li>').join('')+'</ul>':'<p class="muted">Nenhuma pendência encontrada.</p>'}</div>`;
+   ${pend.length?'<ul class="alerts">'+pend.map((p,i)=>`<li><span>${p.t}</span><button class="btn sm" data-pend="${i}">Ver lançamento →</button></li>`).join('')+'</ul>':'<p class="muted">Nenhuma pendência encontrada.</p>'}</div>`;
+  $('#v-inicio').querySelectorAll('[data-pend]').forEach(b=>b.onclick=()=>irParaPendencia(pend[+b.dataset.pend]));
   const v=$('#v-inicio');
   v.querySelectorAll('[data-ano]').forEach(b=>b.onclick=()=>{const a=b.dataset.ano;
     S.mesIni=a===atual.slice(0,4)?atual:(mesesComDados().filter(k=>k.startsWith(a)).pop()||a+'-01');rInicio()});
@@ -508,16 +522,21 @@ function rLanc(){
     <button class="btn" id="bNE">+ Entrada</button><button class="btn pri" id="bNS">− Saída</button>
   </div>
   <div class="card tablewrap">${it.length?`<table class="t"><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Pessoa / Fornecedor</th><th class="n">Valor</th><th></th></tr></thead><tbody>
-  ${it.map(x=>`<tr><td>${x.data?dataBR(x.data):'<span class="muted">'+MESES[+x.mes.slice(5)-1].slice(0,3)+'/'+x.mes.slice(2,4)+'</span>'}</td>
+  ${it.map(x=>`<tr class="${S.destaque&&S.destaque.has(x.id)?'hl':''}"><td>${x.data?dataBR(x.data):'<span class="muted">'+MESES[+x.mes.slice(5)-1].slice(0,3)+'/'+x.mes.slice(2,4)+'</span>'}</td>
    <td><span class="tag ${x.tipo==='entrada'?'in':'out'}">${x.tipo==='entrada'?'Entrada':'Saída'}</span></td><td>${esc(x.categoria)}</td>
    <td>${esc(x.descricao)}${x.recibo?` <span class="muted">· recibo nº ${String(x.recibo).padStart(4,'0')}</span>`:''}</td><td>${esc(x.pessoa||'')}</td>
    <td class="n">${brl(x.valor)}</td><td class="n">${x.tipo==='saida'?`<button class="btn sm" data-rec="${x.id}">Recibo</button> `:''}<button class="btn sm" data-ed="${x.id}">Editar</button> <button class="btn sm danger" data-del="${x.id}">Excluir</button></td></tr>`).join('')}
   </tbody><tfoot><tr><td colspan="5">Entradas ${brl(te)} · Saídas ${brl(ts)}</td><td class="n">${brl(te-ts)}</td><td></td></tr></tfoot></table>`:'<div class="empty">Nenhum lançamento neste filtro.</div>'}</div>`;
-  $('#fMes').onchange=e=>{S.mesLanc=e.target.value;rLanc()};
-  $('#fTipo').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.tipoLanc=b.dataset.t;rLanc()});
+  $('#fMes').onchange=e=>{S.mesLanc=e.target.value;S.destaque=null;rLanc()};
+  $('#fTipo').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.tipoLanc=b.dataset.t;S.destaque=null;rLanc()});
   const fb=$('#fBusca');fb.oninput=e=>{S.busca=e.target.value;clearTimeout(fb._t);fb._t=setTimeout(()=>{rLanc();const n=$('#fBusca');n.focus();n.setSelectionRange(n.value.length,n.value.length)},250)};
   $('#bNE').onclick=()=>wizard({tipo:'entrada'});$('#bNS').onclick=()=>wizard({tipo:'saida'});
   bindRowActions('#v-lancamentos');
+  if(S.destaque&&S.destaque.size){const n=S.destaque.size;const av=document.createElement('div');av.className='hint';av.style.marginBottom='10px';
+    av.innerHTML=`${n===1?'1 lançamento destacado':n+' lançamentos destacados'} a partir dos pontos de atenção. <button class="btn sm" type="button">Limpar destaque</button>`;
+    av.querySelector('button').onclick=()=>{S.destaque=null;rLanc()};$('#v-lancamentos').insertBefore(av,$('#v-lancamentos').children[1]);}
+  else if(S.destaque&&!S.destaque.size&&S.rolarDestaque){}
+  if(S.rolarDestaque){S.rolarDestaque=false;const h=$('#v-lancamentos tr.hl');if(h)setTimeout(()=>h.scrollIntoView({behavior:'smooth',block:'center'}),60)}
 }
 function bindRowActions(root){
   const r=$(root);
