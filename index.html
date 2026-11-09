@@ -350,8 +350,9 @@ function renderBanner(){
 function telaLogin(msg){
   $('#login').hidden=false;$('#lgMsg').textContent=msg||'';
   $('#lgForm').onsubmit=async e=>{e.preventDefault();$('#lgMsg').textContent='Entrando…';
-    const {error}=await sb.auth.signInWithPassword({email:$('#lgEmail').value.trim(),password:$('#lgSenha').value});
-    if(error)$('#lgMsg').textContent='E-mail ou senha incorretos.';};
+    const {data,error}=await sb.auth.signInWithPassword({email:$('#lgEmail').value.trim(),password:$('#lgSenha').value});
+    if(error){$('#lgMsg').textContent='E-mail ou senha incorretos.';return}
+    if(data&&data.session)setTimeout(()=>aposLogin(data.session),0);};
   $('#lgEsqueci').onclick=async()=>{const em=$('#lgEmail').value.trim();if(!em){$('#lgMsg').textContent='Digite seu e-mail acima e clique de novo.';return}
     const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.href.split('#')[0]});
     $('#lgMsg').textContent=error?'Não foi possível enviar o e-mail.':'Enviamos um link para redefinir a senha.'};
@@ -362,7 +363,9 @@ async function aposLogin(session){
   zerarInatividade();
   $('#login').hidden=true;$('#sair').hidden=false;$('#sair').title=session.user.email;
   mode='loading';renderBanner();
+  const lento=setTimeout(()=>{if(mode==='loading'){$('#banner').innerHTML='<div class="banner">Os dados estão demorando para carregar. Se o projeto do Supabase estiver pausado, entre em supabase.com e clique em <b>Restore project</b>; depois recarregue esta página.</div>'}},12000);
   try{await carregarTudo();mode='db'}catch(e){mode='db';toast('Erro ao carregar dados: '+(e.message||e))}
+  clearTimeout(lento);
   renderBanner();
   sb.channel('mudancas').on('postgres_changes',{event:'*',schema:'public',table:'lancamentos'},recarregarDepois)
     .on('postgres_changes',{event:'*',schema:'public',table:'config'},recarregarDepois).subscribe();
@@ -374,7 +377,7 @@ async function init(){
   const {data:{session}}=await sb.auth.getSession();
   sb.auth.onAuthStateChange((ev,ses)=>{
     if(ev==='PASSWORD_RECOVERY'){novaSenha()}
-    else if(ev==='SIGNED_IN'&&ses&&!jaLogado)aposLogin(ses);
+    else if(ev==='SIGNED_IN'&&ses&&!jaLogado)setTimeout(()=>aposLogin(ses),0);
   });
   if(session)aposLogin(session);else{mode='loading';renderBanner();const msg=sessionStorage.getItem('obpc-msg');sessionStorage.removeItem('obpc-msg');telaLogin(msg||'')}
 }
