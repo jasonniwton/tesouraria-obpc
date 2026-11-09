@@ -152,8 +152,10 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .pills.anos button.on{background:rgba(0,39,118,.10);border-color:rgba(0,39,118,.45);color:#1f3f78}
 .pills button.vazio{color:var(--ink3);background:transparent;border-style:dashed}
 .pills button.hoje::after{content:'';position:absolute;top:3px;right:5px;width:6px;height:6px;border-radius:50%;background:#e0b800}
-.pills.meses button{min-width:58px}
-@media (max-width:700px){.pills.meses button{min-width:0;padding:6px 10px}}
+.pills.anos{flex-wrap:nowrap}
+.pills.meses{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:4px 2px 8px;scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:rgba(0,156,59,.35) transparent}
+.pills.meses::-webkit-scrollbar{height:6px}.pills.meses::-webkit-scrollbar-thumb{background:rgba(0,156,59,.35);border-radius:6px}
+.pills.meses button{flex:none;min-width:64px}
 
 #login{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(0,156,59,.10),rgba(255,223,0,.12),rgba(0,39,118,.10)),var(--bg);padding:20px}
 #login[hidden]{display:none}
@@ -394,7 +396,9 @@ function renderAll(){
   if(v==='inicio')rInicio();else if(v==='lancamentos')rLanc();else if(v==='relatorios')rRel();else if(v==='recibos')rRec();else rCfg();
 }
 
-function anosDisponiveis(){const s=new Set(mesesComDados().map(m=>m.slice(0,4)));s.add(mesAtual().slice(0,4));return [...s].sort()}
+function anosDisponiveis(){
+  const ys=mesesComDados().map(m=>+m.slice(0,4)).concat([+mesAtual().slice(0,4),+String(cfg.saldoInicialMes||'2026').slice(0,4),2026,2027]);
+  const ini=Math.min(...ys),fim=Math.max(...ys);const out=[];for(let y=ini;y<=fim;y++)out.push(String(y));return out}
 function rInicio(){
   S.mesIni=S.mesIni||mesAtual();
   const m=S.mesIni,ano=m.slice(0,4),atual=mesAtual();const r=resumo(m);const ms=mesesComDados();
@@ -443,6 +447,7 @@ function rInicio(){
   v.querySelectorAll('[data-ano]').forEach(b=>b.onclick=()=>{const a=b.dataset.ano;
     S.mesIni=a===atual.slice(0,4)?atual:(mesesComDados().filter(k=>k.startsWith(a)).pop()||a+'-01');rInicio()});
   v.querySelectorAll('[data-mes]').forEach(b=>b.onclick=()=>{S.mesIni=b.dataset.mes;rInicio()});
+  const pm=v.querySelector('.pills.meses'),bm=v.querySelector('.pills.meses button.on');if(pm&&bm){pm.scrollLeft=S._scrollMes||0;const l=bm.offsetLeft-pm.offsetLeft,r=l+bm.offsetWidth;if(l<pm.scrollLeft||r>pm.scrollLeft+pm.clientWidth)pm.scrollLeft=l-pm.clientWidth/2+bm.offsetWidth/2;pm.onscroll=()=>{S._scrollMes=pm.scrollLeft}}
   const pre=()=>({mes:m,data:m===atual?hoje():''});
   v.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>{
     const a=b.dataset.a;
