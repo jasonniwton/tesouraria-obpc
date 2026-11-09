@@ -187,6 +187,14 @@ table.t tr.hl td:first-child{box-shadow:inset 3px 0 0 #e0b800}
 #login label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink2);margin-bottom:12px}
 #login .btn{width:100%;padding:10px}
 #login .lk{background:none;border:0;color:var(--accent);cursor:pointer;margin-top:10px;width:100%;font-size:13px}
+#login label[hidden]{display:none}
+#login .lgUsers{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+#login .lgT{font-size:13px;color:var(--ink2)}
+#login .lgUsers button{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:600;text-align:left}
+#login .lgUsers button:hover{border-color:rgba(0,156,59,.45)}
+#login .lgUsers button.on{border-color:rgba(0,156,59,.7);background:rgba(0,156,59,.10)}
+#login .lgUsers .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(0,39,118,.10);color:#1f3f78;font-size:12px;font-weight:700}
+#login .lgUsers button.outro{font-weight:500;color:var(--ink2);justify-content:center;border-style:dashed}
 #lgMsg{text-align:center;font-size:13px;color:var(--ink2);min-height:18px;margin-top:8px}
 #sair{margin-left:6px}
 @media print{
@@ -214,7 +222,8 @@ table.t tr.hl td:first-child{box-shadow:inset 3px 0 0 #e0b800}
 <div id="login" hidden><form class="box" id="lgForm">
   <img id="lgLogo" alt="">
   <h2>Tesouraria — acesso restrito</h2>
-  <label>E-mail<input type="email" id="lgEmail" required autocomplete="username"></label>
+  <div class="lgUsers" id="lgUsers"></div>
+  <label id="lgEmailL" hidden>E-mail<input type="email" id="lgEmail" autocomplete="username"></label>
   <label>Senha<input type="password" id="lgSenha" required autocomplete="current-password"></label>
   <button class="btn pri" type="submit">Entrar</button>
   <button class="lk" type="button" id="lgEsqueci">Esqueci minha senha</button>
@@ -238,6 +247,11 @@ table.t tr.hl td:first-child{box-shadow:inset 3px 0 0 #e0b800}
 // Supabase > Project Settings > API: copie "Project URL" e a chave "anon public".
 const SUPABASE_URL='https://jivsdawzmovfordlduly.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_VSvvgj9XQQecwg0Jm-wOaQ_WyXCXWr_';
+// Usuários que aparecem na tela de login (nome mostrado → e-mail cadastrado no Supabase)
+const USUARIOS=[
+  {nome:'Jason Niwton',email:'jason.niwton@gmail.com'},
+  {nome:'David Gomes',email:'davidgomesdasilva6@gmail.com'},
+];
 // =============================================================================
 // ---------- constantes ----------
 const CAT_E=[
@@ -349,7 +363,14 @@ function renderBanner(){
 }
 function telaLogin(msg){
   $('#login').hidden=false;$('#lgMsg').textContent=msg||'';
-  $('#lgForm').onsubmit=async e=>{e.preventDefault();$('#lgMsg').textContent='Entrando…';
+  const box=$('#lgUsers');
+  box.innerHTML='<div class="lgT">Quem está entrando?</div>'+USUARIOS.map((u,i)=>`<button type="button" data-u="${i}"><span class="av">${esc(u.nome.split(' ').map(p=>p[0]).slice(0,2).join(''))}</span>${esc(u.nome)}</button>`).join('')+'<button type="button" data-u="outro" class="outro">Outro e-mail</button>';
+  const escolher=k=>{box.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.u===String(k)));
+    if(k==='outro'){$('#lgEmailL').hidden=false;$('#lgEmail').value='';$('#lgEmail').focus()}
+    else{$('#lgEmailL').hidden=true;$('#lgEmail').value=USUARIOS[k].email;$('#lgSenha').focus()}};
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>escolher(b.dataset.u==='outro'?'outro':+b.dataset.u));
+  if(!USUARIOS.length){$('#lgEmailL').hidden=false}
+  $('#lgForm').onsubmit=async e=>{e.preventDefault();if(!$('#lgEmail').value){$('#lgMsg').textContent='Escolha quem está entrando.';return}$('#lgMsg').textContent='Entrando…';
     const {data,error}=await sb.auth.signInWithPassword({email:$('#lgEmail').value.trim(),password:$('#lgSenha').value});
     if(error){$('#lgMsg').textContent='E-mail ou senha incorretos.';return}
     if(data&&data.session)setTimeout(()=>aposLogin(data.session),0);};
