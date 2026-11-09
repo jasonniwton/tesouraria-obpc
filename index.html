@@ -132,6 +132,18 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper .via{font-size:11px;color:#666;text-align:right}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;display:none}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
+.periodo{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pills button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:500;color:var(--ink2);position:relative}
+.pills button:hover{border-color:rgba(0,156,59,.45)}
+.pills.anos button{font-weight:650}
+.pills button.on{background:rgba(0,156,59,.14);border-color:rgba(0,156,59,.55);color:#16653a;font-weight:700}
+.pills.anos button.on{background:rgba(0,39,118,.10);border-color:rgba(0,39,118,.45);color:#1f3f78}
+.pills button.vazio{color:var(--ink3);background:transparent;border-style:dashed}
+.pills button.hoje::after{content:'';position:absolute;top:3px;right:5px;width:6px;height:6px;border-radius:50%;background:#e0b800}
+.pills.meses button{min-width:58px}
+@media (max-width:700px){.pills.meses button{min-width:0;padding:6px 10px}}
+
 #login{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(0,156,59,.10),rgba(255,223,0,.12),rgba(0,39,118,.10)),var(--bg);padding:20px}
 #login[hidden]{display:none}
 #login .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;width:100%;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
@@ -369,40 +381,64 @@ function renderAll(){
   if(v==='inicio')rInicio();else if(v==='lancamentos')rLanc();else if(v==='relatorios')rRel();else if(v==='recibos')rRec();else rCfg();
 }
 
+function anosDisponiveis(){const s=new Set(mesesComDados().map(m=>m.slice(0,4)));s.add(mesAtual().slice(0,4));return [...s].sort()}
 function rInicio(){
-  const m=mesAtual();const r=resumo(m);const ms=mesesComDados();
+  S.mesIni=S.mesIni||mesAtual();
+  const m=S.mesIni,ano=m.slice(0,4),atual=mesAtual();const r=resumo(m);const ms=mesesComDados();
+  const comDados=new Set(items.map(x=>x.mes));
   const pend=pendencias();
+  const lista=doMes(m).sort(ord);
+  const anos=anosDisponiveis();
   $('#v-inicio').innerHTML=`
+  <div class="periodo">
+    <div class="pills anos">${anos.map(a=>`<button data-ano="${a}" class="${a===ano?'on':''}">${a}</button>`).join('')}</div>
+    <div class="pills meses">${MESES.map((n,i)=>{const k=ano+'-'+String(i+1).padStart(2,'0');
+      return `<button data-mes="${k}" class="${k===m?'on':''} ${comDados.has(k)?'tem':'vazio'} ${k===atual?'hoje':''}" title="${n}/${ano}${comDados.has(k)?'':' — sem lançamentos'}">${n.slice(0,3)}</button>`}).join('')}</div>
+  </div>
   <div class="grid kpis">
-    <div class="tile"><div class="lab">Saldo em depósito</div><div class="val ${r.fin<0?'neg':''}">${brl(r.fin)}</div><div class="sub">após os lançamentos de ${mesNome(m)}</div></div>
-    <div class="tile"><div class="lab">Entradas — ${MESES[+m.slice(5)-1]}</div><div class="val">${brl(r.te)}</div><div class="sub">${r.nDiz} dizimista(s)</div></div>
-    <div class="tile"><div class="lab">Saídas — ${MESES[+m.slice(5)-1]}</div><div class="val">${brl(r.ts)}</div><div class="sub">${r.said.length} lançamento(s)</div></div>
+    <div class="tile"><div class="lab">Saldo em depósito</div><div class="val ${r.fin<0?'neg':''}">${brl(r.fin)}</div><div class="sub">ao fim de ${mesNome(m)}</div></div>
+    <div class="tile"><div class="lab">Entradas — ${mesNome(m)}</div><div class="val">${brl(r.te)}</div><div class="sub">${r.nDiz} dizimista(s)</div></div>
+    <div class="tile"><div class="lab">Saídas — ${mesNome(m)}</div><div class="val">${brl(r.ts)}</div><div class="sub">${r.said.length} lançamento(s)</div></div>
     <div class="tile"><div class="lab">Resultado do mês</div><div class="val ${r.sm<0?'neg':'pos'}">${brl(r.sm)}</div><div class="sub">dízimo dos dízimos a pagar em ${MESES[(+m.slice(5))%12]}: ${brl(r.dizDiz)}</div></div>
   </div>
-  <h2>O que você quer fazer?</h2>
+  <h2>O que você quer fazer em ${mesNome(m)}?</h2>
   <div class="grid menu">
     <button class="mbtn" data-a="nova-e"><span class="ic in">+</span><span><b>Nova entrada</b><small>Dízimo, oferta, campanha</small></span></button>
     <button class="mbtn" data-a="nova-s"><span class="ic out">−</span><span><b>Nova saída</b><small>Despesa com recibo</small></span></button>
     <button class="mbtn" data-a="dizimos"><span class="ic in">≡</span><span><b>Lançar dízimos do culto</b><small>Um após o outro</small></span></button>
-    <button class="mbtn" data-a="rel"><span class="ic neu">▤</span><span><b>Relatório do mês</b><small>Analítico ou resumido</small></span></button>
+    <button class="mbtn" data-a="rel"><span class="ic neu">▤</span><span><b>Relatório de ${MESES[+m.slice(5)-1]}</b><small>Analítico ou resumido</small></span></button>
     <button class="mbtn" data-a="recibo"><span class="ic neu">✎</span><span><b>Recibos</b><small>Emitir e reimprimir</small></span></button>
-    <button class="mbtn" data-a="xlsx"><span class="ic neu">⇩</span><span><b>Exportar Excel</b><small>Ano completo</small></span></button>
+    <button class="mbtn" data-a="xlsx"><span class="ic neu">⇩</span><span><b>Exportar Excel</b><small>Ano de ${ano}</small></span></button>
   </div>
-  <div class="grid two" style="margin-top:22px">
-    <div class="card"><h3>Entradas e saídas por mês</h3>
+  <div class="card tablewrap" style="margin-top:22px"><h3>Lançamentos de ${mesNome(m)}</h3>
+  ${lista.length?`<table class="t"><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Pessoa / Fornecedor</th><th class="n">Valor</th><th></th></tr></thead><tbody>
+  ${lista.map(x=>`<tr><td>${x.data?dataBR(x.data):'<span class="muted">—</span>'}</td>
+   <td><span class="tag ${x.tipo==='entrada'?'in':'out'}">${x.tipo==='entrada'?'Entrada':'Saída'}</span></td><td>${esc(x.categoria)}</td>
+   <td>${esc(x.descricao)}${x.recibo?` <span class="muted">· recibo nº ${String(x.recibo).padStart(4,'0')}</span>`:''}</td><td>${esc(x.pessoa||'')}</td>
+   <td class="n">${brl(x.valor)}</td><td class="n">${x.tipo==='saida'?`<button class="btn sm" data-rec="${x.id}">Recibo</button> `:''}<button class="btn sm" data-ed="${x.id}">Editar</button> <button class="btn sm danger" data-del="${x.id}">Excluir</button></td></tr>`).join('')}
+  </tbody><tfoot><tr><td colspan="5">Entradas ${brl(r.te)} · Saídas ${brl(r.ts)}</td><td class="n">${brl(r.sm)}</td><td></td></tr></tfoot></table>`
+  :`<div class="empty">Nenhum lançamento em ${mesNome(m)}. Use “Nova entrada” ou “Nova saída” acima.</div>`}</div>
+  <div class="grid two" style="margin-top:14px">
+    <div class="card"><h3>Entradas e saídas por mês — ${ano}</h3>
       <div class="legend"><span><i style="background:var(--in)"></i>Entradas</span><span><i style="background:var(--out)"></i>Saídas</span></div>
       <div class="chart" id="ch1"></div></div>
-    <div class="card"><h3>Saldo em depósito ao fim de cada mês</h3><div class="chart" id="ch2"></div></div>
+    <div class="card"><h3>Saldo em depósito ao fim de cada mês — ${ano}</h3><div class="chart" id="ch2"></div></div>
   </div>
   <div class="card" style="margin-top:14px"><h3>Pontos de atenção</h3>
    ${pend.length?'<ul class="alerts">'+pend.map(p=>'<li>'+p+'</li>').join('')+'</ul>':'<p class="muted">Nenhuma pendência encontrada.</p>'}</div>`;
-  $('#v-inicio').querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>{
+  const v=$('#v-inicio');
+  v.querySelectorAll('[data-ano]').forEach(b=>b.onclick=()=>{const a=b.dataset.ano;
+    S.mesIni=a===atual.slice(0,4)?atual:(mesesComDados().filter(k=>k.startsWith(a)).pop()||a+'-01');rInicio()});
+  v.querySelectorAll('[data-mes]').forEach(b=>b.onclick=()=>{S.mesIni=b.dataset.mes;rInicio()});
+  const pre=()=>({mes:m,data:m===atual?hoje():''});
+  v.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>{
     const a=b.dataset.a;
-    if(a==='nova-e')wizard({tipo:'entrada'});else if(a==='nova-s')wizard({tipo:'saida'});
-    else if(a==='dizimos')wizard({tipo:'entrada',categoria:'Dízimos'});
-    else if(a==='rel'){location.hash='#relatorios'}else if(a==='recibo'){location.hash='#recibos'}else exportXlsx();
+    if(a==='nova-e')wizard({tipo:'entrada',...pre()});else if(a==='nova-s')wizard({tipo:'saida',...pre()});
+    else if(a==='dizimos')wizard({tipo:'entrada',categoria:'Dízimos',...pre()});
+    else if(a==='rel'){S.mesRel=m;if(S.relTipo==='anual')S.relTipo='resumido';location.hash='#relatorios'}else if(a==='recibo'){location.hash='#recibos'}else exportXlsx();
   });
-  const ano=m.slice(0,4);const mm=ms.filter(x=>x.startsWith(ano)&&x>=cfg.saldoInicialMes);
+  bindRowActions('#v-inicio');
+  const mm=ms.filter(x=>x.startsWith(ano)&&x>=cfg.saldoInicialMes);
   drawBars('#ch1',mm);drawSaldo('#ch2',mm);
 }
 function niceMax(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;return (n<=1?1:n<=2?2:n<=5?5:10)*p}
@@ -797,7 +833,7 @@ function pdfRecibo(x){
 }
 function exportXlsx(){
   if(!window.XLSX){toast('Gerador de Excel não carregou');return}
-  const wb=XLSX.utils.book_new();const ano=(S.view==='relatorios'&&S.relTipo==='anual')?S.anoRel:mesAtual().slice(0,4);
+  const wb=XLSX.utils.book_new();const ano=(S.view==='relatorios'&&S.relTipo==='anual')?S.anoRel:(S.mesIni||mesAtual()).slice(0,4);
   const L=linhasAnuais(ano);
   const res=[['FLUXO DE CAIXA '+ano+' — '+cfg.igreja],[],['Mês','Dízimos','Ofertas','Outras entradas','Total entradas','Total saídas','Saldo do mês','Saldo anterior','Saldo em depósito','Nº dizimistas']];
   L.forEach(x=>res.push([MESES[+x.m.slice(5)-1],r2(x.diz),r2(x.of),r2(x.out),x.te,x.ts,x.sm,x.r.ant,x.fin,x.n]));
