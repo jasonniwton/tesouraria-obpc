@@ -866,11 +866,25 @@ function relDizimistas(ano){
 function pdfDizimistasInto(doc,ano){
   const {ms,L}=rankingDizimistas(ano);const val=!!S.rankValores;
   const y=pdfCab(doc,null,'Assiduidade dos dizimistas — '+ano);
-  const head=['#','Dizimista',...ms.map(m=>MESES[+m.slice(5)-1].slice(0,3)),'Meses','%','Seguidos'].concat(val?['Total']:[]);
-  const body=L.map(p=>[p.pos+'º',p.nome,...ms.map(m=>p.meses.has(m)?'X':''),p.n+'/'+ms.length,Math.round(p.pct*100)+'%',String(p.seq)].concat(val?[num(p.total)]:[]));
-  const cs={0:{cellWidth:9},1:{cellWidth:'auto'}};ms.forEach((m,i)=>cs[i+2]={halign:'center',cellWidth:8.5});const b=ms.length+2;cs[b]={halign:'right'};cs[b+1]={halign:'right'};cs[b+2]={halign:'right'};if(val)cs[b+3]={halign:'right'};
-  doc.autoTable({...AT,startY:y,head:[head],body,styles:{...AT.styles,fontSize:8},columnStyles:cs,
-    didParseCell:d=>{if(d.section==='body'&&d.column.index>=2&&d.column.index<b&&d.cell.raw==='X'){d.cell.styles.textColor=[0,140,52];d.cell.styles.fontStyle='bold'}}});
+  doc.setFontSize(9);doc.text('Meses considerados: '+(ms.length?mesNome(ms[0])+' a '+mesNome(ms[ms.length-1])+' ('+ms.length+')':'—'),14,y+1);doc.text('Dizimistas: '+L.length,doc.internal.pageSize.getWidth()-14,y+1,{align:'right'});
+  const nm=ms.length,cM=2,cMes=cM+nm,cPct=cMes+1,cSeq=cPct+1,cTot=cSeq+1;
+  const head=['#','Dizimista',...ms.map(m=>MESES[+m.slice(5)-1].slice(0,3).toUpperCase()),'Meses','Assid.','Seguid.'].concat(val?['Total']:[]);
+  const body=L.map(p=>[p.pos<=3?'':p.pos+'º',p.nome,...ms.map(()=>''),p.n+'/'+nm,Math.round(p.pct*100)+'%',String(p.seq)].concat(val?[num(p.total)]:[]));
+  const cs={0:{cellWidth:10,halign:'center',fontStyle:'bold',textColor:[22,101,58]},1:{cellWidth:'auto',fontStyle:'bold'}};
+  ms.forEach((m,i)=>cs[cM+i]={cellWidth:7.2,halign:'center'});cs[cMes]={halign:'right',cellWidth:13};cs[cPct]={halign:'right',cellWidth:22};cs[cSeq]={halign:'right',cellWidth:13};if(val)cs[cTot]={halign:'right',cellWidth:20};
+  const cores={1:[212,175,55],2:[176,180,186],3:[196,123,63]};
+  doc.autoTable({...AT,startY:y+4,head:[head],body,styles:{...AT.styles,fontSize:8,cellPadding:1.5,minCellHeight:7.6,valign:'middle'},headStyles:{...AT.headStyles,fontSize:7,halign:'center'},columnStyles:cs,
+    didDrawCell:d=>{if(d.section!=='body')return;const p=L[d.row.index];const c=d.cell,cx=c.x+c.width/2,cy=c.y+c.height/2;
+      if(d.column.index===0&&p.pos<=3){const col=cores[p.pos];
+        doc.setFillColor(0,156,59);doc.triangle(cx-2.1,cy-3.3,cx-0.4,cy-3.3,cx-1.2,cy-0.6,'F');doc.setFillColor(0,39,118);doc.triangle(cx+0.4,cy-3.3,cx+2.1,cy-3.3,cx+1.2,cy-0.6,'F');
+        doc.setFillColor(...col);doc.setDrawColor(Math.max(col[0]-40,0),Math.max(col[1]-40,0),Math.max(col[2]-40,0));doc.setLineWidth(.3);doc.circle(cx,cy+0.9,2.2,'FD');
+        doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text(String(p.pos),cx,cy+2.0,{align:'center'});doc.setTextColor(0);doc.setDrawColor(0)}
+      else if(d.column.index>=cM&&d.column.index<cMes){const m=ms[d.column.index-cM];
+        if(p.meses.has(m)){doc.setFillColor(10,143,62);doc.circle(cx,cy,1.5,'F')}else{doc.setFillColor(190,190,190);doc.circle(cx,cy,0.45,'F')}}
+      else if(d.column.index===cPct){const bw=9,bh=1.6,bx=c.x+1.5,by=cy-bh/2;doc.setFillColor(232,236,233);doc.rect(bx,by,bw,bh,'F');if(p.pct>0){doc.setFillColor(63,174,106);doc.rect(bx,by,bw*p.pct,bh,'F')}}
+    }});
+  const fy=doc.lastAutoTable.finalY+5;doc.setFontSize(7.5);doc.setTextColor(90);
+  doc.text(doc.splitTextToSize('Ordem: mais meses com dízimo no ano; empate decidido pelos meses seguidos até o último mês e pela maior sequência. Entre os empatados em 1º lugar, fica à frente quem teve a maior contribuição no ano. "Seguid." = meses consecutivos contribuindo até o último mês (o mês em andamento só conta se a pessoa já contribuiu nele). ● = contribuiu no mês.'.replace('●','Bolinha verde'),doc.internal.pageSize.getWidth()-28),14,fy);doc.setTextColor(0);
 }
 
 // ---------- configurações ----------
