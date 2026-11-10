@@ -133,6 +133,14 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper .via{font-size:11px;color:#666;text-align:right}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;display:none}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
+.paper table.rank td,.paper table.rank th{padding:5px 6px}
+.paper table.rank th.mc,.paper table.rank td.mc{text-align:center;width:26px;padding:4px 1px}
+.paper table.rank{font-size:12px}.paper table.rank td:nth-child(2){min-width:150px}.paper table.rank th{font-size:10.5px;padding:5px 4px}.paper table.rank td{padding:4px 4px}.paper table.rank .bar{width:26px}
+.paper table.rank td.pos{font-weight:700;text-align:center;font-size:15px}
+.paper .dot.ok{color:#0a8f3e;font-size:15px}.paper .dot.no{color:#bbb}
+.paper .bar{display:inline-block;width:46px;height:6px;border-radius:4px;background:#e8ece9;margin-right:6px;vertical-align:middle;overflow:hidden}
+.paper .bar i{display:block;height:100%;background:#3fae6a}
+
 .form .check{flex-direction:row;align-items:center;gap:10px;color:var(--ink);font-size:14.5px}
 .form .check input{width:18px;height:18px}
 #pacotePrint{position:absolute;left:-99999px;top:0;width:820px}
@@ -816,14 +824,53 @@ function marcarNegativos(root){if(!root)return;root.querySelectorAll('.paper td.
 function rRel(){
   S.mesRel=S.mesRel||mesAtual();const anos=[...new Set(mesesComDados().map(m=>m.slice(0,4)))];
   $('#v-relatorios').innerHTML=`<div class="toolbar">
-   <div class="seg" id="rT"><button data-t="resumido" class="${S.relTipo==='resumido'?'on':''}">Resumido</button><button data-t="analitico" class="${S.relTipo==='analitico'?'on':''}">Analítico</button><button data-t="anual" class="${S.relTipo==='anual'?'on':''}">Anual</button></div>
-   ${S.relTipo==='anual'?`<select id="rA">${anos.map(a=>`<option ${a===S.anoRel?'selected':''}>${a}</option>`).join('')}</select>`:`<select id="rM">${mesOptions(S.mesRel)}</select>`}
+   <div class="seg" id="rT"><button data-t="resumido" class="${S.relTipo==='resumido'?'on':''}">Resumido</button><button data-t="analitico" class="${S.relTipo==='analitico'?'on':''}">Analítico</button><button data-t="anual" class="${S.relTipo==='anual'?'on':''}">Anual</button><button data-t="dizimistas" class="${S.relTipo==='dizimistas'?'on':''}">Dizimistas</button></div>
+   ${S.relTipo==='anual'||S.relTipo==='dizimistas'?`<select id="rA">${anos.map(a=>`<option ${a===S.anoRel?'selected':''}>${a}</option>`).join('')}</select>`:`<select id="rM">${mesOptions(S.mesRel)}</select>`}
+   ${S.relTipo==='dizimistas'?`<label class="check" style="margin:0;font-size:14px"><input type="checkbox" id="rV" ${S.rankValores?'checked':''}> Mostrar valores</label>`:''}
    <span class="sp"></span><button class="btn" id="rPk">Ano inteiro…</button><button class="btn" id="rI">Imprimir</button><button class="btn" id="rX">Baixar Excel</button><button class="btn pri" id="rP">Baixar PDF</button></div>
-   <div id="rBody">${S.relTipo==='resumido'?relResumido(S.mesRel):S.relTipo==='analitico'?relAnalitico(S.mesRel):relAnual(S.anoRel)}</div>`;
+   <div id="rBody">${S.relTipo==='resumido'?relResumido(S.mesRel):S.relTipo==='analitico'?relAnalitico(S.mesRel):S.relTipo==='dizimistas'?relDizimistas(S.anoRel):relAnual(S.anoRel)}</div>`;
+  if($('#rV'))$('#rV').onchange=e=>{S.rankValores=e.target.checked;rRel()};
   marcarNegativos($('#rBody'));
   $('#rT').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.relTipo=b.dataset.t;rRel()});
   if($('#rM'))$('#rM').onchange=e=>{S.mesRel=e.target.value;rRel()};if($('#rA'))$('#rA').onchange=e=>{S.anoRel=e.target.value;rRel()};
   $('#rPk').onclick=abrirPacote;$('#rP').onclick=()=>pdfRelatorio();$('#rI').onclick=()=>imprimir($('#rBody .paper'));$('#rX').onclick=()=>exportXlsx();
+}
+
+// ---------- ranking de dizimistas (assiduidade) ----------
+function rankingDizimistas(ano){
+  const ms=mesesDoAno(ano).filter(m=>m<=mesAtual());const P={};
+  items.filter(x=>x.categoria==='Dízimos'&&x.mes.startsWith(ano)&&x.mes<=mesAtual()).forEach(x=>{const n=(x.pessoa||'').trim().toUpperCase();if(!n)return;
+    const p=P[n]=P[n]||{nome:n,meses:new Set(),total:0,ultimo:''};p.meses.add(x.mes);p.total+=+x.valor||0;if(x.mes>p.ultimo)p.ultimo=x.mes});
+  const L=Object.values(P).map(p=>{let seq=0,ini=ms.length-1;if(ms[ini]===mesAtual()&&!p.meses.has(ms[ini]))ini--;for(let i=ini;i>=0;i--){if(p.meses.has(ms[i]))seq++;else break}
+    let maior=0,c=0;ms.forEach(m=>{if(p.meses.has(m)){c++;maior=Math.max(maior,c)}else c=0});
+    return{...p,n:p.meses.size,pct:ms.length?p.meses.size/ms.length:0,seq,maior,total:r2(p.total)}});
+  L.sort((a,b)=>b.n-a.n||b.seq-a.seq||b.maior-a.maior||a.nome.localeCompare(b.nome));
+  let pos=0,ant=null;L.forEach((p,i)=>{const k=p.n+'|'+p.seq+'|'+p.maior;if(k!==ant){pos=i+1;ant=k}p.pos=pos});
+  // Desempate entre os campeões (1º lugar): maior contribuição no ano
+  const top=L.filter(p=>p.pos===1);
+  if(top.length>1){top.sort((a,b)=>b.total-a.total||a.nome.localeCompare(b.nome));let tp=0,tv=null;top.forEach((p,i)=>{if(p.total!==tv){tp=i+1;tv=p.total}p.pos=tp;p.desempate=true});L.splice(0,top.length,...top)}
+  return{ms,L};
+}
+function relDizimistas(ano){
+  const {ms,L}=rankingDizimistas(ano);const val=!!S.rankValores;
+  const medal=p=>p===1?'🥇':p===2?'🥈':p===3?'🥉':p+'º';
+  return `<div class="paper"><div class="${hdCls()}">${logoTag()}<span>${esc(cfg.convencao)}</span><b>${esc(cfg.igreja)}</b><span>Assiduidade dos dizimistas — ${ano}</span></div>
+  <div class="meta"><span><b>Meses considerados:</b> ${ms.length?mesNome(ms[0])+' a '+mesNome(ms[ms.length-1])+' ('+ms.length+')':'—'}</span><span><b>Dizimistas:</b> ${L.length}</span></div>
+  ${L.length?`<table class="rank"><thead><tr><th style="width:44px">#</th><th>Dizimista</th>${ms.map(m=>`<th class="mc">${MESES[+m.slice(5)-1].slice(0,3)}</th>`).join('')}<th style="text-align:right">Meses</th><th style="text-align:right">Assid.</th><th style="text-align:right" title="Meses seguidos até o último mês">Seguid.</th>${val?'<th style="text-align:right">Total</th>':''}</tr></thead><tbody>
+  ${L.map(p=>`<tr><td class="pos">${medal(p.pos)}</td><td><b>${esc(p.nome)}</b></td>${ms.map(m=>`<td class="mc">${p.meses.has(m)?'<span class="dot ok" title="contribuiu">●</span>':'<span class="dot no">·</span>'}</td>`).join('')}
+    <td class="n">${p.n}/${ms.length}</td><td class="n"><span class="bar"><i style="width:${Math.round(p.pct*100)}%"></i></span>${Math.round(p.pct*100)}%</td><td class="n">${p.seq}</td>${val?`<td class="n">${num(p.total)}</td>`:''}</tr>`).join('')}
+  </tbody></table>
+  <p style="font-size:12px;color:#555">Ordem: mais meses com dízimo no ano; empate decidido pelos meses seguidos até o último mês e pela maior sequência. Entre os empatados em 1º lugar, fica à frente quem teve a maior contribuição no ano. “Seguidos” = meses consecutivos contribuindo até o último mês (o mês em andamento só conta se a pessoa já contribuiu nele).</p>`
+  :'<p>Nenhum dízimo lançado neste ano.</p>'}</div>`;
+}
+function pdfDizimistasInto(doc,ano){
+  const {ms,L}=rankingDizimistas(ano);const val=!!S.rankValores;
+  const y=pdfCab(doc,null,'Assiduidade dos dizimistas — '+ano);
+  const head=['#','Dizimista',...ms.map(m=>MESES[+m.slice(5)-1].slice(0,3)),'Meses','%','Seguidos'].concat(val?['Total']:[]);
+  const body=L.map(p=>[p.pos+'º',p.nome,...ms.map(m=>p.meses.has(m)?'X':''),p.n+'/'+ms.length,Math.round(p.pct*100)+'%',String(p.seq)].concat(val?[num(p.total)]:[]));
+  const cs={0:{cellWidth:9},1:{cellWidth:'auto'}};ms.forEach((m,i)=>cs[i+2]={halign:'center',cellWidth:8.5});const b=ms.length+2;cs[b]={halign:'right'};cs[b+1]={halign:'right'};cs[b+2]={halign:'right'};if(val)cs[b+3]={halign:'right'};
+  doc.autoTable({...AT,startY:y,head:[head],body,styles:{...AT.styles,fontSize:8},columnStyles:cs,
+    didParseCell:d=>{if(d.section==='body'&&d.column.index>=2&&d.column.index<b&&d.cell.raw==='X'){d.cell.styles.textColor=[0,140,52];d.cell.styles.fontStyle='bold'}}});
 }
 
 // ---------- configurações ----------
@@ -925,6 +972,7 @@ function pdfRelatorio(){
   if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const t=S.relTipo;
   if(t==='anual'){pdfAnualInto(doc,S.anoRel);return oferecer(`Fluxo de caixa ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
+  if(t==='dizimistas'){pdfDizimistasInto(doc,S.anoRel);return oferecer(`Dizimistas ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
   pdfMesInto(doc,S.mesRel,t);
   oferecer(`Relatório ${t==='resumido'?'resumido':'analítico'} ${mesNome(S.mesRel).replace('/',' ')}.pdf`,doc.output('arraybuffer'));
 }
@@ -934,7 +982,7 @@ function anosComDados(){return [...new Set(items.map(x=>x.mes.slice(0,4)))].sort
 function pacoteLista(o){
   const anos=o.ano==='todos'?anosComDados():[o.ano];const out=[];
   anos.forEach(a=>{const ms=mesesDoAno(a);if(!ms.length)return;
-    if(o.anual)out.push({k:'anual',a});
+    if(o.anual)out.push({k:'anual',a});if(o.diz)out.push({k:'diz',a});
     ms.forEach(m=>{if(o.res)out.push({k:'resumido',m});if(o.ana)out.push({k:'analitico',m})})});
   return out;
 }
@@ -948,11 +996,12 @@ function abrirPacote(){
       <label class="check" style="margin:0"><input type="checkbox" name="anual" checked> Consolidado anual (resumo do ano)</label>
       <label class="check" style="margin:0"><input type="checkbox" name="res" checked> Resumido de cada mês</label>
       <label class="check" style="margin:0"><input type="checkbox" name="ana" checked> Analítico de cada mês</label>
+      <label class="check" style="margin:0"><input type="checkbox" name="diz"> Assiduidade dos dizimistas</label>
     </div>
   </form>
   <p class="muted" id="pkInfo" style="font-size:13px;margin-top:10px"></p>
   <div class="mfoot"><button class="btn" id="pkC">Cancelar</button>${podeImprimir?'<button class="btn" id="pkI">Imprimir</button>':''}<button class="btn pri" id="pkP">Baixar PDF</button></div>`);
-  const f=$('#pkF');const opt=()=>({ano:f.ano.value,anual:f.anual.checked,res:f.res.checked,ana:f.ana.checked});
+  const f=$('#pkF');const opt=()=>({ano:f.ano.value,anual:f.anual.checked,res:f.res.checked,ana:f.ana.checked,diz:f.diz.checked});
   const info=()=>{const n=pacoteLista(opt()).length;$('#pkInfo').textContent=n?`${n} relatório(s) num único arquivo, cada um começando numa página nova.`:'Marque pelo menos uma opção.'};
   f.onchange=info;info();
   $('#pkC').onclick=closeModal;
@@ -962,14 +1011,14 @@ function abrirPacote(){
 function pdfPacote(lista,o){
   if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
-  lista.forEach((r,i)=>{if(i)doc.addPage();if(r.k==='anual')pdfAnualInto(doc,r.a);else pdfMesInto(doc,r.m,r.k)});
+  lista.forEach((r,i)=>{if(i)doc.addPage();if(r.k==='anual')pdfAnualInto(doc,r.a);else if(r.k==='diz')pdfDizimistasInto(doc,r.a);else pdfMesInto(doc,r.m,r.k)});
   const tot=doc.getNumberOfPages();for(let p=1;p<=tot;p++){doc.setPage(p);doc.setFontSize(8);doc.setTextColor(120);doc.text(`Página ${p} de ${tot}`,doc.internal.pageSize.getWidth()-14,290,{align:'right'});doc.setTextColor(0)}
   const nome=o.ano==='todos'?'todos os anos':o.ano;
   oferecer(`Relatórios ${nome}.pdf`,doc.output('arraybuffer'));
 }
 function imprimirPacote(lista){
   let box=$('#pacotePrint');if(!box){box=document.createElement('div');box.id='pacotePrint';document.body.appendChild(box)}
-  box.innerHTML=lista.map(r=>r.k==='anual'?relAnual(r.a):r.k==='resumido'?relResumido(r.m):relAnalitico(r.m)).join('');marcarNegativos(box);
+  box.innerHTML=lista.map(r=>r.k==='anual'?relAnual(r.a):r.k==='diz'?relDizimistas(r.a):r.k==='resumido'?relResumido(r.m):relAnalitico(r.m)).join('');marcarNegativos(box);
   closeModal();setTimeout(()=>imprimir(box),50);
 }
 function pdfRecibo(x){
