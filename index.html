@@ -119,6 +119,7 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:14px}
 .paper th{background:rgba(0,156,59,.12);color:#1d5a35;text-align:left;padding:6px 8px;border:1px solid #d9e6dd;font-size:12.5px;text-transform:uppercase}
 .paper td{padding:5px 8px;border:1px solid #ddd}
+.paper td.n.neg{color:#c23b3b!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .paper td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .paper tr.sub td{background:rgba(255,223,0,.12);font-weight:600}
 .paper tr.tot td{background:rgba(0,39,118,.08);color:#1f3f78;font-weight:700}
@@ -326,7 +327,7 @@ const INATIVO_MS=30*60*1000;let inatT;
 function zerarInatividade(){clearTimeout(inatT);if(!jaLogado)return;inatT=setTimeout(async()=>{await sb.auth.signOut();sessionStorage.setItem('obpc-msg','Sessão encerrada após 30 minutos sem uso. Entre novamente.');location.reload()},INATIVO_MS)}
 ['click','keydown','mousemove','touchstart','scroll'].forEach(ev=>window.addEventListener(ev,()=>{if(!zerarInatividade._t){zerarInatividade._t=setTimeout(()=>{zerarInatividade._t=0;zerarInatividade()},2000)}},{passive:true}));
 const LSK='obpc-tesouraria-demo';
-const COLS=['tipo','categoria','mes','data','descricao','pessoa','doc','forma','valor','recibo','obs'];
+const COLS=['tipo','categoria','mes','data','descricao','pessoa','doc','forma','valor','recibo','obs','atualizado'];let semColAtualizado=false;
 function lsLoad(){try{const o=JSON.parse(localStorage.getItem(LSK)||'{}');items=o.items||[];cfg={...DEF_CFG,...(o.cfg||{})}}catch(e){}}
 function lsSave(){try{localStorage.setItem(LSK,JSON.stringify({items,cfg}))}catch(e){}}
 const limpa=r=>{const o={id:r.id};COLS.forEach(k=>{if(r[k]!==null&&r[k]!==undefined&&r[k]!=='')o[k]=k==='valor'?+r[k]:r[k]});return o};
@@ -343,7 +344,11 @@ let recarregarT;function recarregarDepois(){clearTimeout(recarregarT);recarregar
 async function salvarItem(id,data){
   if(mode==='db'){
     const row={id:id||crypto.randomUUID()};COLS.forEach(k=>row[k]=data[k]===undefined||data[k]===''?null:data[k]);
-    const {error}=await sb.from('lancamentos').upsert(row);if(error)throw error;
+    if(semColAtualizado)delete row.atualizado;
+    let {error}=await sb.from('lancamentos').upsert(row);
+    if(error&&/atualizado/i.test(error.message||'')){semColAtualizado=true;delete row.atualizado;({error}=await sb.from('lancamentos').upsert(row));
+      toast('Aviso: rode no Supabase o comando da coluna "atualizado" (veja o LEIAME) para a ordem por edição funcionar.',6000)}
+    if(error)throw error;
     const i=items.findIndex(x=>x.id===row.id);const n=limpa(row);if(i>=0)items[i]=n;else items.push(n);renderAll();return row.id;
   }
   if(!id){id='l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);items.push({id,...data})}
@@ -414,7 +419,8 @@ function novaSenha(){
 
 // ---------- cálculos ----------
 const doMes=m=>items.filter(x=>x.mes===m);
-const ord=(a,b)=>(a.mes+(a.data||'')+a.id).localeCompare(b.mes+(b.data||'')+b.id);
+// Ordem: mês → entradas antes das saídas → data da última inclusão/edição (mais recente embaixo) → data → id
+const ord=(a,b)=>(a.mes||'').localeCompare(b.mes||'')||((a.tipo==='saida')-(b.tipo==='saida'))||(a.atualizado||'').localeCompare(b.atualizado||'')||((a.data||'')+a.id).localeCompare((b.data||'')+b.id);
 function mesesComDados(){const s=new Set(items.map(x=>x.mes));s.add(mesAtual());return [...s].filter(Boolean).sort()}
 function totMes(m){let e=0,s=0;for(const x of items)if(x.mes===m){if(x.tipo==='entrada')e+=+x.valor||0;else s+=+x.valor||0}return{e:r2(e),s:r2(s),l:r2(e-s)}}
 function saldoAnterior(m){let v=+cfg.saldoInicial||0;const ms=new Set(items.map(x=>x.mes));for(const k of ms){if(k>=cfg.saldoInicialMes&&k<m)v+=totMes(k).l}return r2(v)}
@@ -614,7 +620,7 @@ function closeModal(){$('#ov').classList.remove('show')}
 $('#ov').addEventListener('mousedown',e=>{if(e.target.id==='ov')closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 function wizard(pre,step){
-  W={data:hoje(),forma:'Dinheiro',gerarRecibo:true,...pre};
+  W={forma:'Dinheiro',gerarRecibo:true,...pre};if(!pre.id&&!('data' in pre))W.data=hoje();if(W.data===undefined)W.data='';
   if(!W.mes)W.mes=W.data?W.data.slice(0,7):mesAtual();
   W.step=step||(W.categoria?3:W.tipo?2:1);renderWizard();
 }
@@ -647,7 +653,7 @@ function renderWizard(){
       <label>Data<input type="date" name="data" value="${esc(W.data||'')}"></label>
       <label>Mês de referência<input type="month" name="mes" value="${esc(W.mes)}" required></label>
       <label class="full">Descrição<input name="descricao" list="dlDesc" value="${esc(W.descricao||'')}" required placeholder="${isS?'Ex.: CEMIG, cimento, mão de obra…':'Ex.: Dízimo, oferta da campanha…'}"></label>
-      <label class="full">${pLab}<input name="pessoa" list="dlPes" value="${esc(W.pessoa||'')}" ${isD||isS?'required':''}></label>
+      <label class="full">${pLab}<input name="pessoa" list="dlPes" value="${esc(W.pessoa||'')}" ${isD?'required':''} ${isS?'placeholder="Opcional — aparece no recibo"':''}></label>
       ${isS?`<label>CPF / CNPJ do fornecedor (opcional)<input name="doc" value="${esc(W.doc||'')}"></label>`:''}
       <label>Forma de pagamento<select name="forma">${FORMAS.map(f=>`<option ${W.forma===f?'selected':''}>${f}</option>`).join('')}</select></label>
       <label ${isS?'':'class="full"'}>Valor (R$)<input name="valor" inputmode="decimal" value="${W.valor!=null?num(W.valor):''}" required placeholder="0,00" style="font-size:18px;font-weight:600"></label>
@@ -666,7 +672,7 @@ function renderWizard(){
       const fd=Object.fromEntries(new FormData(f));const v=parseValor(fd.valor);
       if(!fd.mes){toast('Informe o mês de referência');return}
       if(!fd.descricao.trim()){toast('Informe a descrição');f.descricao.focus();return}
-      if((isD||isS)&&!fd.pessoa.trim()){toast('Informe '+pLab.toLowerCase());f.pessoa.focus();return}
+      if(isD&&!fd.pessoa.trim()){toast('Informe '+pLab.toLowerCase());f.pessoa.focus();return}
       if(!(v>0)){toast('Informe um valor maior que zero');f.valor.focus();return}
       Object.assign(W,fd,{valor:v,descricao:fd.descricao.trim(),pessoa:fd.pessoa.trim()});W.step=4;renderWizard();
     };
@@ -688,7 +694,7 @@ function renderWizard(){
     openModal(h);
     const go=async(outro)=>{
       if(isS)W.gerarRecibo=$('#wRec').checked;
-      const data={tipo:W.tipo,categoria:W.categoria,mes:W.mes,descricao:W.descricao,valor:W.valor,forma:W.forma};
+      const data={tipo:W.tipo,categoria:W.categoria,mes:W.mes,descricao:W.descricao,valor:W.valor,forma:W.forma,atualizado:new Date().toISOString()};
       if(W.data)data.data=W.data;if(W.pessoa)data.pessoa=W.pessoa;if(W.doc)data.doc=W.doc;if(W.obs)data.obs=W.obs;
       if(isS&&W.gerarRecibo)data.recibo=W.recibo||proxRecibo();else if(W.recibo)data.recibo=W.recibo;
       const btns=$('#modal').querySelectorAll('button');btns.forEach(b=>b.disabled=true);
@@ -806,6 +812,7 @@ function relAnual(ano){const L=linhasAnuais(ano);const s=k=>L.reduce((a,x)=>a+x[
   <table><thead><tr><th>Saídas por categoria — ${ano}</th><th style="text-align:right;width:130px">Valor</th><th style="text-align:right;width:80px">%</th></tr></thead><tbody>
   ${porCat.map(x=>`<tr><td>${esc(x.c)}</td><td class="n">${num(x.v)}</td><td class="n">${(x.v/ts*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</td></tr>`).join('')}</tbody></table>
   <p style="font-size:12.5px">Saldo inicial considerado: ${num(cfg.saldoInicial)} em ${mesNome(cfg.saldoInicialMes)} (saldo depositado do mês anterior).</p></div>`}
+function marcarNegativos(root){if(!root)return;root.querySelectorAll('.paper td.n').forEach(td=>{if(/^\s*[-−]\s*\d/.test(td.textContent))td.classList.add('neg')})}
 function rRel(){
   S.mesRel=S.mesRel||mesAtual();const anos=[...new Set(mesesComDados().map(m=>m.slice(0,4)))];
   $('#v-relatorios').innerHTML=`<div class="toolbar">
@@ -813,6 +820,7 @@ function rRel(){
    ${S.relTipo==='anual'?`<select id="rA">${anos.map(a=>`<option ${a===S.anoRel?'selected':''}>${a}</option>`).join('')}</select>`:`<select id="rM">${mesOptions(S.mesRel)}</select>`}
    <span class="sp"></span><button class="btn" id="rPk">Ano inteiro…</button><button class="btn" id="rI">Imprimir</button><button class="btn" id="rX">Baixar Excel</button><button class="btn pri" id="rP">Baixar PDF</button></div>
    <div id="rBody">${S.relTipo==='resumido'?relResumido(S.mesRel):S.relTipo==='analitico'?relAnalitico(S.mesRel):relAnual(S.anoRel)}</div>`;
+  marcarNegativos($('#rBody'));
   $('#rT').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.relTipo=b.dataset.t;rRel()});
   if($('#rM'))$('#rM').onchange=e=>{S.mesRel=e.target.value;rRel()};if($('#rA'))$('#rA').onchange=e=>{S.anoRel=e.target.value;rRel()};
   $('#rPk').onclick=abrirPacote;$('#rP').onclick=()=>pdfRelatorio();$('#rI').onclick=()=>imprimir($('#rBody .paper'));$('#rX').onclick=()=>exportXlsx();
@@ -860,7 +868,9 @@ function oferecer(filename,data){
 function imprimir(el){if(!el)return;document.querySelectorAll('.printarea').forEach(e=>e.classList.remove('printarea'));el.classList.add('printarea');window.print()}
 
 function jsPDFok(){return window.jspdf&&window.jspdf.jsPDF}
-function pdfCab(doc,m,titulo){
+function pdfNeg(doc){if(doc.__neg)return;doc.__neg=true;const orig=doc.autoTable.bind(doc);
+  doc.autoTable=o=>{const u=o.didParseCell;return orig({...o,didParseCell:d=>{u&&u(d);const t=(d.cell.text||[]).join('').trim();if(/^[-−]\s*\d/.test(t))d.cell.styles.textColor=[194,59,59]}})}}
+function pdfCab(doc,m,titulo){pdfNeg(doc);
   const w=doc.internal.pageSize.getWidth();const temLogo=!!(cfg.logo&&cfg.logoW);pdfLogo(doc,12,6,58,21);const cx=temLogo?(72+w-14)/2:w/2;doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(cfg.convencao,cx,14,{align:'center'});
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(31,63,120);doc.text(cfg.igreja,cx,20.5,{align:'center'});doc.setTextColor(0);
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(cfg.endereco+(cfg.cidade?' — '+cfg.cidade:'')+(cfg.cnpj?' — CNPJ '+cfg.cnpj:''),cx,26,{align:'center'});
@@ -959,7 +969,7 @@ function pdfPacote(lista,o){
 }
 function imprimirPacote(lista){
   let box=$('#pacotePrint');if(!box){box=document.createElement('div');box.id='pacotePrint';document.body.appendChild(box)}
-  box.innerHTML=lista.map(r=>r.k==='anual'?relAnual(r.a):r.k==='resumido'?relResumido(r.m):relAnalitico(r.m)).join('');
+  box.innerHTML=lista.map(r=>r.k==='anual'?relAnual(r.a):r.k==='resumido'?relResumido(r.m):relAnalitico(r.m)).join('');marcarNegativos(box);
   closeModal();setTimeout(()=>imprimir(box),50);
 }
 function pdfRecibo(x){
@@ -1000,6 +1010,12 @@ function exportXlsx(){
     a.push([],['RESUMO SIMPLIFICADO'],['Entrada em ofertas','',r2(r.ent['Ofertas'])],['Entrada em dízimos','',r2(r.ent['Dízimos'])],['Outros / ofertas especiais','',r2((r.ent['Ofertas especiais']||0)+(r.ent['Outras entradas']||0))],
       ['Número de dizimistas','',r.nDiz],['ENTRADA DO MÊS','',r.te],['SAÍDAS DO MÊS','',r.ts],['SALDO DO MÊS','',r.sm],['SALDO DEPOSITADO MÊS ANTERIOR','',r.ant],['SALDO EM DEPÓSITO','',r.fin]);
     const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=[{wch:44},{wch:26},{wch:14}];XLSX.utils.book_append_sheet(wb,ws,MESES[+x.m.slice(5)-1].toUpperCase())});
+  const FMT='#,##0.00;[Red]-#,##0.00';
+  wb.SheetNames.forEach(n=>{const ws=wb.Sheets[n];Object.keys(ws).forEach(k=>{if(k[0]==='!')return;const c=ws[k];if(!c||!(c.t==='n'||c.f))return;
+    const col=k.replace(/\d+/g,''),row=k.replace(/\D+/g,'');
+    if(n==='Resumo anual'&&col==='J')return;if(n==='Lançamentos'&&col!=='J')return;
+    const lab=ws['A'+row]&&String(ws['A'+row].v||'');if(/dizimistas/i.test(lab))return;
+    c.z=FMT})});
   const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
   oferecer(`Fluxo de caixa ${ano}.xlsx`,buf);
 }
