@@ -419,8 +419,8 @@ function novaSenha(){
 
 // ---------- cálculos ----------
 const doMes=m=>items.filter(x=>x.mes===m);
-// Ordem: mês → entradas antes das saídas → data da última inclusão/edição (mais recente embaixo) → data → id
-const ord=(a,b)=>(a.mes||'').localeCompare(b.mes||'')||((a.tipo==='saida')-(b.tipo==='saida'))||(a.atualizado||'').localeCompare(b.atualizado||'')||((a.data||'')+a.id).localeCompare((b.data||'')+b.id);
+// Ordem: mês → entradas antes das saídas → última inclusão/edição primeiro (mais recente no topo do grupo) → data → id
+const ord=(a,b)=>(a.mes||'').localeCompare(b.mes||'')||((a.tipo==='saida')-(b.tipo==='saida'))||(b.atualizado||'').localeCompare(a.atualizado||'')||((a.data||'')+a.id).localeCompare((b.data||'')+b.id);
 function mesesComDados(){const s=new Set(items.map(x=>x.mes));s.add(mesAtual());return [...s].filter(Boolean).sort()}
 function totMes(m){let e=0,s=0;for(const x of items)if(x.mes===m){if(x.tipo==='entrada')e+=+x.valor||0;else s+=+x.valor||0}return{e:r2(e),s:r2(s),l:r2(e-s)}}
 function saldoAnterior(m){let v=+cfg.saldoInicial||0;const ms=new Set(items.map(x=>x.mes));for(const k of ms){if(k>=cfg.saldoInicialMes&&k<m)v+=totMes(k).l}return r2(v)}
