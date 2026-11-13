@@ -145,7 +145,7 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .form .check input{width:18px;height:18px}
 #pacotePrint{position:absolute;left:-99999px;top:0;width:820px}
 #pacotePrint .paper{box-shadow:none;border:0;margin:0 0 20px}
-@media print{#pacotePrint .paper{break-after:page;page-break-after:always;max-width:none;padding:0}#pacotePrint .paper:last-child{break-after:auto;page-break-after:auto}}
+@media print{#pacotePrint .paper{break-after:page;page-break-after:always;padding:0;overflow:hidden}#pacotePrint .paper:last-child{break-after:auto;page-break-after:auto}}
 
 .menu{grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
 .menu .mbtn{padding:10px 12px;gap:10px;min-width:0}
@@ -210,10 +210,13 @@ table.t tr.hl td:first-child{box-shadow:inset 3px 0 0 #e0b800}
 #login .lgUsers button.outro{font-weight:500;color:var(--ink2);justify-content:center;border-style:dashed}
 #lgMsg{text-align:center;font-size:13px;color:var(--ink2);min-height:18px;margin-top:8px}
 #sair{margin-left:6px}
+#printRoot{position:absolute;left:-99999px;top:0}
 @media print{
-  body *{visibility:hidden!important}
-  .printarea,.printarea *{visibility:visible!important}
-  .printarea{position:absolute;left:0;top:0;width:100%;max-width:none;border:0;box-shadow:none;margin:0;padding:10mm 12mm}
+  body.imprimindo>*:not(#printRoot){display:none!important}
+  body.imprimindo{background:#fff!important}
+  body.imprimindo #printRoot{position:static;left:auto}
+  #printRoot .paper{break-after:page;page-break-after:always;overflow:hidden}
+  #printRoot .paper:last-child{break-after:auto;page-break-after:auto}
   .ov{position:static;background:none;padding:0}
   @page{size:A4;margin:8mm}
   .paper th,.paper tr.sub td,.paper tr.tot td,.paper .rec,.paper .rec .rv{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -874,13 +877,13 @@ function pdfDizimistasInto(doc,ano){
   ms.forEach((m,i)=>cs[cM+i]={cellWidth:7.2,halign:'center'});cs[cMes]={halign:'right',cellWidth:13};cs[cPct]={halign:'right',cellWidth:22};cs[cSeq]={halign:'right',cellWidth:13};if(val)cs[cTot]={halign:'right',cellWidth:20};
   const cores={1:[212,175,55],2:[176,180,186],3:[196,123,63]};
   doc.autoTable({...AT,startY:y+4,head:[head],body,styles:{...AT.styles,fontSize:8,cellPadding:1.5,minCellHeight:7.6,valign:'middle'},headStyles:{...AT.headStyles,fontSize:7,halign:'center'},columnStyles:cs,
-    didDrawCell:d=>{if(d.section!=='body')return;const p=L[d.row.index];const c=d.cell,cx=c.x+c.width/2,cy=c.y+c.height/2;
+    didDrawCell:d=>{if(d.section!=='body')return;const K=doc.__k||1;const p=L[d.row.index];const c=d.cell,cx=c.x+c.width/2,cy=c.y+c.height/2;
       if(d.column.index===0&&p.pos<=3){const col=cores[p.pos];
-        doc.setFillColor(0,156,59);doc.triangle(cx-2.1,cy-3.3,cx-0.4,cy-3.3,cx-1.2,cy-0.6,'F');doc.setFillColor(0,39,118);doc.triangle(cx+0.4,cy-3.3,cx+2.1,cy-3.3,cx+1.2,cy-0.6,'F');
-        doc.setFillColor(...col);doc.setDrawColor(Math.max(col[0]-40,0),Math.max(col[1]-40,0),Math.max(col[2]-40,0));doc.setLineWidth(.3);doc.circle(cx,cy+0.9,2.2,'FD');
-        doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text(String(p.pos),cx,cy+2.0,{align:'center'});doc.setTextColor(0);doc.setDrawColor(0)}
+        doc.setFillColor(0,156,59);doc.triangle(cx-2.1*K,cy-3.3*K,cx-0.4*K,cy-3.3*K,cx-1.2*K,cy-0.6*K,'F');doc.setFillColor(0,39,118);doc.triangle(cx+0.4*K,cy-3.3*K,cx+2.1*K,cy-3.3*K,cx+1.2*K,cy-0.6*K,'F');
+        doc.setFillColor(...col);doc.setDrawColor(Math.max(col[0]-40,0),Math.max(col[1]-40,0),Math.max(col[2]-40,0));doc.setLineWidth(.3);doc.circle(cx,cy+0.9*K,2.2*K,'FD');
+        doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7*K);doc.text(String(p.pos),cx,cy+2.0*K,{align:'center'});doc.setTextColor(0);doc.setDrawColor(0)}
       else if(d.column.index>=cM&&d.column.index<cMes){const m=ms[d.column.index-cM];
-        if(p.meses.has(m)){doc.setFillColor(10,143,62);doc.circle(cx,cy,1.5,'F')}else{doc.setFillColor(190,190,190);doc.circle(cx,cy,0.45,'F')}}
+        if(p.meses.has(m)){doc.setFillColor(10,143,62);doc.circle(cx,cy,1.5*K,'F')}else{doc.setFillColor(190,190,190);doc.circle(cx,cy,0.45*K,'F')}}
       else if(d.column.index===cPct){const bw=9,bh=1.6,bx=c.x+1.5,by=cy-bh/2;doc.setFillColor(232,236,233);doc.rect(bx,by,bw,bh,'F');if(p.pct>0){doc.setFillColor(63,174,106);doc.rect(bx,by,bw*p.pct,bh,'F')}}
     }});
   const fy=doc.lastAutoTable.finalY+5;doc.setFontSize(7.5);doc.setTextColor(90);
@@ -926,11 +929,30 @@ function oferecer(filename,data){
   try{const blob=data instanceof Blob?data:new Blob([data]);const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){toast('Não foi possível baixar o arquivo')}
 }
-function imprimir(el){if(!el)return;document.querySelectorAll('.printarea').forEach(e=>e.classList.remove('printarea'));el.classList.add('printarea');window.print()}
+function imprimir(el){if(!el)return;
+  // Copia só o documento para uma área própria; o resto da página some na impressão (sem folhas em branco)
+  let root=document.getElementById('printRoot');if(root)root.remove();root=document.createElement('div');root.id='printRoot';
+  const papers=el.classList.contains('paper')?[el]:[...el.querySelectorAll('.paper')];
+  papers.forEach(p=>{const c=p.cloneNode(true);c.removeAttribute('id');root.appendChild(c)});document.body.appendChild(root);document.body.classList.add('imprimindo');
+  // A4 retrato menos margens ≈ 194 x 281 mm → 733 x 1062 px (96 dpi): reduz cada folha até caber
+  root.querySelectorAll('.paper').forEach(p=>{p.style.padding='0';p.style.margin='0';p.style.border='0';p.style.boxShadow='none';p.style.maxWidth='none';
+    let z=1;for(let i=0;i<8;i++){p.style.zoom=String(z);p.style.width=(733/z)+'px';const h=p.scrollHeight*z;if(h<=1000)break;z=z*Math.sqrt(1000/h)*0.99}});
+  const volta=()=>{document.body.classList.remove('imprimindo');root.remove();window.removeEventListener('afterprint',volta)};window.addEventListener('afterprint',volta);
+  window.print()}
 
 function jsPDFok(){return window.jspdf&&window.jspdf.jsPDF}
 function pdfNeg(doc){if(doc.__neg)return;doc.__neg=true;const orig=doc.autoTable.bind(doc);
-  doc.autoTable=o=>{const u=o.didParseCell;return orig({...o,didParseCell:d=>{u&&u(d);const t=(d.cell.text||[]).join('').trim();if(/^[-−]\s*\d/.test(t))d.cell.styles.textColor=[194,59,59]}})}}
+  doc.autoTable=o=>{const u=o.didParseCell;const k=doc.__k||1;const st=o.styles||{};
+    const esc=x=>x?{...x,...(x.fontSize?{fontSize:x.fontSize*k}:{})}:x;
+    const o2={...o,styles:{...st,fontSize:(st.fontSize||9)*k,cellPadding:(st.cellPadding!=null?st.cellPadding:1.6)*k*k*k,...(st.minCellHeight?{minCellHeight:st.minCellHeight*k}:{})},
+      headStyles:{...(o.headStyles||{}),fontSize:((o.headStyles&&o.headStyles.fontSize)||9)*k},footStyles:o.footStyles?{...o.footStyles,fontSize:((o.footStyles.fontSize)||9)*k}:undefined,
+      startY:o.startY!=null?o.startY:undefined,
+      didParseCell:d=>{u&&u(d);const t=(d.cell.text||[]).join('').trim();if(/^[-−]\s*\d/.test(t))d.cell.styles.textColor=[194,59,59]}};
+    if(!o2.footStyles)delete o2.footStyles;return orig(o2)}}
+// Ajusta cada relatório para caber em UMA folha: testa escalas até não passar de 1 página
+function escalaUmaPagina(desenhar){
+  const J=window.jspdf.jsPDF;for(const k of [1,.95,.9,.85,.8,.75,.7,.65,.6,.55,.5]){const t=new J({unit:'mm',format:'a4'});t.__k=k;desenhar(t);if(t.getNumberOfPages()===1)return k}return .5}
+function desenharUmaPagina(doc,desenhar){const k=escalaUmaPagina(desenhar);doc.__k=k;desenhar(doc)}
 function pdfCab(doc,m,titulo){pdfNeg(doc);
   const w=doc.internal.pageSize.getWidth();const temLogo=!!(cfg.logo&&cfg.logoW);pdfLogo(doc,12,6,58,21);const cx=temLogo?(72+w-14)/2:w/2;doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(cfg.convencao,cx,14,{align:'center'});
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(31,63,120);doc.text(cfg.igreja,cx,20.5,{align:'center'});doc.setTextColor(0);
@@ -940,10 +962,10 @@ function pdfCab(doc,m,titulo){pdfNeg(doc);
   else{doc.setFont('helvetica','bold');doc.text(titulo,14,37);doc.setFont('helvetica','normal')}
   return 42;
 }
-function pdfAss(doc,y){const w=doc.internal.pageSize.getWidth();if(y>250){doc.addPage();y=30}const d=new Date();
-  doc.setFontSize(10);doc.text(`${cfg.cidade||''}, ${d.getDate()} de ${MESES[d.getMonth()].toLowerCase()} de ${d.getFullYear()}.`,14,y+10);
-  doc.line(20,y+34,95,y+34);doc.line(w-95,y+34,w-20,y+34);doc.setFontSize(9);
-  doc.text((cfg.dirigente?cfg.dirigente+' — ':'')+'Assinatura do dirigente',57.5,y+39,{align:'center'});doc.text((cfg.tesoureiro?cfg.tesoureiro+' — ':'')+'Assinatura do tesoureiro',w-57.5,y+39,{align:'center'})}
+function pdfAss(doc,y){const w=doc.internal.pageSize.getWidth();const K=doc.__k||1;const h=39*K;if(y+h>290){doc.addPage();y=30}const d=new Date();
+  doc.setFontSize(10*Math.max(K,.8));doc.text(`${cfg.cidade||''}, ${d.getDate()} de ${MESES[d.getMonth()].toLowerCase()} de ${d.getFullYear()}.`,14,y+10*K);
+  doc.line(20,y+34*K,95,y+34*K);doc.line(w-95,y+34*K,w-20,y+34*K);doc.setFontSize(9*Math.max(K,.8));
+  doc.text((cfg.dirigente?cfg.dirigente+' — ':'')+'Assinatura do dirigente',57.5,y+(34*K+4.5),{align:'center'});doc.text((cfg.tesoureiro?cfg.tesoureiro+' — ':'')+'Assinatura do tesoureiro',w-57.5,y+(34*K+4.5),{align:'center'})}
 const AT={theme:'grid',styles:{fontSize:9,cellPadding:1.6,lineColor:[200,200,200]},headStyles:{fillColor:[224,242,230],textColor:[29,90,53],fontStyle:'bold'},lineColor:[217,230,221],margin:{left:14,right:14}};
 function pdfAnualInto(doc,ano){
   const right={halign:'right'};const y=pdfCab(doc,null,'Fluxo de caixa consolidado — '+ano);const L=linhasAnuais(ano);const s=k=>L.reduce((a,x)=>a+x[k],0);
@@ -985,9 +1007,9 @@ function pdfMesInto(doc,m,t){
 function pdfRelatorio(){
   if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const t=S.relTipo;
-  if(t==='anual'){pdfAnualInto(doc,S.anoRel);return oferecer(`Fluxo de caixa ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
-  if(t==='dizimistas'){pdfDizimistasInto(doc,S.anoRel);return oferecer(`Dizimistas ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
-  pdfMesInto(doc,S.mesRel,t);
+  if(t==='anual'){desenharUmaPagina(doc,d=>pdfAnualInto(d,S.anoRel));return oferecer(`Fluxo de caixa ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
+  if(t==='dizimistas'){desenharUmaPagina(doc,d=>pdfDizimistasInto(d,S.anoRel));return oferecer(`Dizimistas ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
+  desenharUmaPagina(doc,d=>pdfMesInto(d,S.mesRel,t));
   oferecer(`Relatório ${t==='resumido'?'resumido':'analítico'} ${mesNome(S.mesRel).replace('/',' ')}.pdf`,doc.output('arraybuffer'));
 }
 // ---------- pacote: vários relatórios de uma vez ----------
@@ -1025,7 +1047,7 @@ function abrirPacote(){
 function pdfPacote(lista,o){
   if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
-  lista.forEach((r,i)=>{if(i)doc.addPage();if(r.k==='anual')pdfAnualInto(doc,r.a);else if(r.k==='diz')pdfDizimistasInto(doc,r.a);else pdfMesInto(doc,r.m,r.k)});
+  lista.forEach((r,i)=>{const f=d=>{if(r.k==='anual')pdfAnualInto(d,r.a);else if(r.k==='diz')pdfDizimistasInto(d,r.a);else pdfMesInto(d,r.m,r.k)};const k=escalaUmaPagina(f);if(i)doc.addPage();doc.__k=k;f(doc)});
   const tot=doc.getNumberOfPages();for(let p=1;p<=tot;p++){doc.setPage(p);doc.setFontSize(8);doc.setTextColor(120);doc.text(`Página ${p} de ${tot}`,doc.internal.pageSize.getWidth()-14,290,{align:'right'});doc.setTextColor(0)}
   const nome=o.ano==='todos'?'todos os anos':o.ano;
   oferecer(`Relatórios ${nome}.pdf`,doc.output('arraybuffer'));
