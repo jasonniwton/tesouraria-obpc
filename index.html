@@ -133,6 +133,11 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper .via{font-size:11px;color:#666;text-align:right}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:80;display:none}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
+.card.pizza svg{display:block;max-width:760px;color:var(--ink)}
+
+.paper h4.gt{margin:16px 0 4px;font-size:14px;color:#1f3f78;display:flex;justify-content:space-between;align-items:center}
+.paper h4.gt .lg{font-weight:500;font-size:12px;color:#444}.paper h4.gt .lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 10px;vertical-align:-1px}
+
 .paper table.rank td,.paper table.rank th{padding:5px 6px}
 .paper table.rank th.mc,.paper table.rank td.mc{text-align:center;width:26px;padding:4px 1px}
 .paper table.rank{font-size:12px}.paper table.rank td:nth-child(2){min-width:150px}.paper table.rank th{font-size:10.5px;padding:5px 4px}.paper table.rank td{padding:4px 4px}.paper table.rank .bar{width:26px}
@@ -521,6 +526,7 @@ function rInicio(){
       <div class="chart" id="ch1"></div></div>
     <div class="card"><h3>Saldo em depósito ao fim de cada mês — ${ano}</h3><div class="chart" id="ch2"></div></div>
   </div>
+  ${(()=>{const g=dadosGraficos(ano);return `<div class="card pizza" style="margin-top:14px"><h3>Despesas por categoria — ${ano} <span class="muted" style="font-weight:400">· total ${brl(g.tot)}</span></h3>${svgPizza(g.cats,g.tot)}</div>`})()}
   <div class="card" style="margin-top:14px"><h3>Pontos de atenção</h3>
    ${pend.length?'<ul class="alerts">'+pend.map((p,i)=>`<li><span>${p.t}</span><span class="acts"><button class="btn sm" data-pend="${i}">Ver lançamento →</button><button class="btn sm" data-disp="${i}" title="Considerado pelo administrador — tirar da lista">Dispensar</button></span></li>`).join('')+'</ul>':'<p class="muted">Nenhuma pendência encontrada.</p>'}
    ${dispensadas.length?`<details class="disp"><summary>${dispensadas.length} ponto(s) dispensado(s)</summary><ul class="alerts">${dispensadas.map((p,i)=>`<li><span class="muted">${p.t}</span><button class="btn sm" data-rest="${i}">Restaurar</button></li>`).join('')}</ul></details>`:''}</div>`;
@@ -827,16 +833,96 @@ function marcarNegativos(root){if(!root)return;root.querySelectorAll('.paper td.
 function rRel(){
   S.mesRel=S.mesRel||mesAtual();const anos=[...new Set(mesesComDados().map(m=>m.slice(0,4)))];
   $('#v-relatorios').innerHTML=`<div class="toolbar">
-   <div class="seg" id="rT"><button data-t="resumido" class="${S.relTipo==='resumido'?'on':''}">Resumido</button><button data-t="analitico" class="${S.relTipo==='analitico'?'on':''}">Analítico</button><button data-t="anual" class="${S.relTipo==='anual'?'on':''}">Anual</button><button data-t="dizimistas" class="${S.relTipo==='dizimistas'?'on':''}">Dizimistas</button></div>
-   ${S.relTipo==='anual'||S.relTipo==='dizimistas'?`<select id="rA">${anos.map(a=>`<option ${a===S.anoRel?'selected':''}>${a}</option>`).join('')}</select>`:`<select id="rM">${mesOptions(S.mesRel)}</select>`}
+   <div class="seg" id="rT"><button data-t="resumido" class="${S.relTipo==='resumido'?'on':''}">Resumido</button><button data-t="analitico" class="${S.relTipo==='analitico'?'on':''}">Analítico</button><button data-t="anual" class="${S.relTipo==='anual'?'on':''}">Anual</button><button data-t="graficos" class="${S.relTipo==='graficos'?'on':''}">Gráficos</button><button data-t="dizimistas" class="${S.relTipo==='dizimistas'?'on':''}">Dizimistas</button></div>
+   ${S.relTipo==='anual'||S.relTipo==='dizimistas'||S.relTipo==='graficos'?`<select id="rA">${anos.map(a=>`<option ${a===S.anoRel?'selected':''}>${a}</option>`).join('')}</select>`:`<select id="rM">${mesOptions(S.mesRel)}</select>`}
    ${S.relTipo==='dizimistas'?`<label class="check" style="margin:0;font-size:14px"><input type="checkbox" id="rV" ${S.rankValores?'checked':''}> Mostrar valores</label>`:''}
    <span class="sp"></span><button class="btn" id="rPk">Ano inteiro…</button><button class="btn" id="rI">Imprimir</button><button class="btn" id="rX">Baixar Excel</button><button class="btn pri" id="rP">Baixar PDF</button></div>
-   <div id="rBody">${S.relTipo==='resumido'?relResumido(S.mesRel):S.relTipo==='analitico'?relAnalitico(S.mesRel):S.relTipo==='dizimistas'?relDizimistas(S.anoRel):relAnual(S.anoRel)}</div>`;
+   <div id="rBody">${S.relTipo==='resumido'?relResumido(S.mesRel):S.relTipo==='analitico'?relAnalitico(S.mesRel):S.relTipo==='dizimistas'?relDizimistas(S.anoRel):S.relTipo==='graficos'?relGraficos(S.anoRel):relAnual(S.anoRel)}</div>`;
   if($('#rV'))$('#rV').onchange=e=>{S.rankValores=e.target.checked;rRel()};
   marcarNegativos($('#rBody'));
   $('#rT').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.relTipo=b.dataset.t;rRel()});
   if($('#rM'))$('#rM').onchange=e=>{S.mesRel=e.target.value;rRel()};if($('#rA'))$('#rA').onchange=e=>{S.anoRel=e.target.value;rRel()};
   $('#rPk').onclick=abrirPacote;$('#rP').onclick=()=>pdfRelatorio();$('#rI').onclick=()=>imprimir($('#rBody .paper'));$('#rX').onclick=()=>exportXlsx();
+}
+
+// ---------- gráficos do ano (página do pacote) ----------
+const CORES_CAT={'Repasses à Convenção':[44,90,160],'Sustento pastoral':[42,157,92],'Água e energia':[224,180,0],'Obras e reformas':[224,123,57],'Manutenção e equipamentos':[123,94,167],'Administrativo':[42,157,157],'Alimentação e eventos':[194,68,59],'Outras saídas':[138,138,138]};
+const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+function dadosGraficos(ano){
+  const ms=mesesDoAno(ano).filter(m=>m>=cfg.saldoInicialMes);
+  const meses=ms.map(m=>{const t=totMes(m);return{m,e:t.e,s:t.s,saldo:r2(saldoAnterior(m)+t.l)}});
+  const cats=CAT_S.map(c=>({c:c.n,v:r2(items.filter(x=>x.tipo==='saida'&&x.mes.startsWith(ano)&&x.categoria===c.n).reduce((a,x)=>a+(+x.valor||0),0))})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  return{meses,cats,tot:r2(cats.reduce((a,x)=>a+x.v,0))};
+}
+function svgBarras(meses){
+  const W=700,H=250,L=56,R=10,T=12,B=28;if(!meses.length)return'';
+  const max=niceMax(Math.max(...meses.map(d=>Math.max(d.e,d.s))));const gw=(W-L-R)/meses.length,bw=Math.min(18,(gw-10)/2),y=v=>T+(H-T-B)*(1-v/max);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  for(let i=0;i<=4;i++){const v=max*i/4;s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e3e3"/><text x="${L-6}" y="${y(v)+4}" font-size="11" text-anchor="end" fill="#777">${(v/1000).toLocaleString('pt-BR')}k</text>`}
+  meses.forEach((d,i)=>{const cx=L+gw*i+gw/2;const b=(x,v,c)=>{const yy=y(v),h=H-B-yy;return h>0?`<rect x="${x}" y="${yy}" width="${bw}" height="${h}" rx="2" fill="${c}"/>`:''};
+    s+=b(cx-bw-1,d.e,'#3fae6a')+b(cx+1,d.s,'#4a6fb5')+`<text x="${cx}" y="${H-8}" font-size="11" text-anchor="middle" fill="#555">${MESES[+d.m.slice(5)-1].slice(0,3)}</text>`});
+  return s+'</svg>';
+}
+function svgSaldo(meses){
+  const W=700,H=220,L=56,R=16,T=14,B=28;if(!meses.length)return'';
+  const vals=meses.map(d=>d.saldo).concat([0]);let mx=Math.max(...vals),mn=Math.min(...vals);const pad=(mx-mn)*.1||100;mx+=pad;mn-=pad;
+  const x=i=>L+(W-L-R)*(meses.length===1?.5:i/(meses.length-1)),y=v=>T+(H-T-B)*(mx-v)/(mx-mn);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4;s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e3e3"/><text x="${L-6}" y="${y(v)+4}" font-size="11" text-anchor="end" fill="#777">${(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})}k</text>`}
+  s+=`<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="#999" stroke-dasharray="4 3"/>`;
+  s+=`<path d="${meses.map((d,i)=>(i?'L':'M')+x(i)+','+y(d.saldo)).join('')}" fill="none" stroke="#4a6fb5" stroke-width="2"/>`;
+  meses.forEach((d,i)=>{s+=`<circle cx="${x(i)}" cy="${y(d.saldo)}" r="4" fill="${d.saldo<0?'#c23b3b':'#4a6fb5'}" stroke="#fff" stroke-width="1.5"/><text x="${x(i)}" y="${H-8}" font-size="11" text-anchor="middle" fill="#555">${MESES[+d.m.slice(5)-1].slice(0,3)}</text>`});
+  const u=meses[meses.length-1];s+=`<text x="${x(meses.length-1)-6}" y="${y(u.saldo)-10}" font-size="12" text-anchor="end" font-weight="700" fill="${u.saldo<0?'#c23b3b':'#222'}">${brl(u.saldo)}</text>`;
+  return s+'</svg>';
+}
+function svgPizza(cats,tot){
+  if(!tot)return'<p>Sem despesas no ano.</p>';const cx=120,cy=120,r=105;let a0=-Math.PI/2,s=`<svg viewBox="0 0 700 250" width="100%">`;
+  cats.forEach(c=>{const a1=a0+2*Math.PI*c.v/tot;const big=a1-a0>Math.PI?1:0;const p=(a)=>`${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
+    s+=cats.length===1?`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${rgb(CORES_CAT[c.c]||[138,138,138])}"/>`:`<path d="M${cx},${cy} L${p(a0)} A${r},${r} 0 ${big} 1 ${p(a1)} Z" fill="${rgb(CORES_CAT[c.c]||[138,138,138])}" stroke="#fff" stroke-width="2"/>`;a0=a1});
+  cats.forEach((c,i)=>{const yy=30+i*26;s+=`<rect x="270" y="${yy-11}" width="14" height="14" rx="3" fill="${rgb(CORES_CAT[c.c]||[138,138,138])}"/><text x="292" y="${yy}" font-size="13" fill="currentColor">${esc(c.c)}</text><text x="600" y="${yy}" font-size="13" text-anchor="end" fill="currentColor">${num(c.v)}</text><text x="690" y="${yy}" font-size="13" text-anchor="end" font-weight="700" fill="currentColor">${(c.v/tot*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</text>`});
+  return s+'</svg>';
+}
+function relGraficos(ano){
+  const {meses,cats,tot}=dadosGraficos(ano);
+  return `<div class="paper"><div class="${hdCls()}">${logoTag()}<span>${esc(cfg.convencao)}</span><b>${esc(cfg.igreja)}</b><span>Gráficos do ano — ${ano}</span></div>
+  <h4 class="gt">Entradas e saídas por mês <span class="lg"><i style="background:#3fae6a"></i>Entradas <i style="background:#4a6fb5"></i>Saídas</span></h4>${svgBarras(meses)}
+  <h4 class="gt">Saldo em depósito ao fim de cada mês</h4>${svgSaldo(meses)}
+  <h4 class="gt">Despesas por categoria — total ${brl(tot)}</h4>${svgPizza(cats,tot)}</div>`;
+}
+function pdfGraficosInto(doc,ano){
+  const {meses,cats,tot}=dadosGraficos(ano);const w=doc.internal.pageSize.getWidth();
+  let y=pdfCab(doc,null,'Gráficos do ano — '+ano);
+  const titulo=(t,yy)=>{doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(31,63,120);doc.text(t,14,yy);doc.setFont('helvetica','normal');doc.setTextColor(0)};
+  // 1) barras
+  titulo('Entradas e saídas por mês',y+2);doc.setFontSize(8);doc.setFillColor(63,174,106);doc.rect(w-62,y-1,3,3,'F');doc.text('Entradas',w-57,y+1.5);doc.setFillColor(74,111,181);doc.rect(w-38,y-1,3,3,'F');doc.text('Saídas',w-33,y+1.5);
+  const L=28,R=w-14,T=y+6,B=y+68;
+  if(meses.length){const max=niceMax(Math.max(...meses.map(d=>Math.max(d.e,d.s))));const Y=v=>B-(B-T)*v/max;
+    doc.setDrawColor(225);doc.setLineWidth(.2);doc.setFontSize(7);doc.setTextColor(120);
+    for(let i=0;i<=4;i++){const v=max*i/4;doc.line(L,Y(v),R,Y(v));doc.text((v/1000).toLocaleString('pt-BR')+'k',L-2,Y(v)+1,{align:'right'})}
+    const gw=(R-L)/meses.length,bw=Math.min(5,(gw-3)/2);
+    meses.forEach((d,i)=>{const cx=L+gw*i+gw/2;doc.setFillColor(63,174,106);if(d.e>0)doc.rect(cx-bw-0.3,Y(d.e),bw,B-Y(d.e),'F');doc.setFillColor(74,111,181);if(d.s>0)doc.rect(cx+0.3,Y(d.s),bw,B-Y(d.s),'F');doc.text(MESES[+d.m.slice(5)-1].slice(0,3),cx,B+4,{align:'center'})});
+    doc.setTextColor(0);doc.setDrawColor(0)}
+  // 2) saldo
+  y=B+12;titulo('Saldo em depósito ao fim de cada mês',y);
+  const T2=y+5,B2=y+58;
+  if(meses.length){const vals=meses.map(d=>d.saldo).concat([0]);let mx=Math.max(...vals),mn=Math.min(...vals);const pad=(mx-mn)*.1||100;mx+=pad;mn-=pad;
+    const X=i=>L+(R-L)*(meses.length===1?.5:i/(meses.length-1)),Y=v=>T2+(B2-T2)*(mx-v)/(mx-mn);
+    doc.setDrawColor(225);doc.setLineWidth(.2);doc.setFontSize(7);doc.setTextColor(120);
+    for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4;doc.line(L,Y(v),R,Y(v));doc.text((v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k',L-2,Y(v)+1,{align:'right'})}
+    doc.setDrawColor(150);doc.setLineDashPattern([1.5,1],0);doc.line(L,Y(0),R,Y(0));doc.setLineDashPattern([],0);
+    doc.setDrawColor(74,111,181);doc.setLineWidth(.7);for(let i=1;i<meses.length;i++)doc.line(X(i-1),Y(meses[i-1].saldo),X(i),Y(meses[i].saldo));
+    meses.forEach((d,i)=>{if(d.saldo<0)doc.setFillColor(194,59,59);else doc.setFillColor(74,111,181);doc.circle(X(i),Y(d.saldo),1.2,'F');doc.setTextColor(120);doc.text(MESES[+d.m.slice(5)-1].slice(0,3),X(i),B2+4,{align:'center'})});
+    const u=meses[meses.length-1];doc.setFontSize(8);doc.setFont('helvetica','bold');if(u.saldo<0)doc.setTextColor(194,59,59);else doc.setTextColor(30);doc.text(brl(u.saldo),X(meses.length-1)-2,Y(u.saldo)-3,{align:'right'});
+    doc.setFont('helvetica','normal');doc.setTextColor(0);doc.setDrawColor(0);doc.setLineWidth(.2)}
+  // 3) pizza
+  y=B2+12;titulo('Despesas por categoria — total '+brl(tot),y);
+  if(tot){const cx=52,cy=y+38,r=32;let a0=-Math.PI/2;
+    cats.forEach(c=>{const a1=a0+2*Math.PI*c.v/tot;const col=CORES_CAT[c.c]||[138,138,138];doc.setFillColor(...col);doc.setDrawColor(255);
+      const n=Math.max(2,Math.ceil((a1-a0)/(Math.PI/90)));const pts=[[cx,cy]];for(let k=0;k<=n;k++){const a=a0+(a1-a0)*k/n;pts.push([cx+r*Math.cos(a),cy+r*Math.sin(a)])}
+      const segs=[];for(let k=1;k<pts.length;k++)segs.push([pts[k][0]-pts[k-1][0],pts[k][1]-pts[k-1][1]]);doc.setLineWidth(.4);doc.lines(segs,pts[0][0],pts[0][1],[1,1],'FD',true);a0=a1});
+    doc.setDrawColor(0);doc.setFontSize(8.5);
+    cats.forEach((c,i)=>{const yy=y+12+i*8;const col=CORES_CAT[c.c]||[138,138,138];doc.setFillColor(...col);doc.rect(98,yy-3,3.5,3.5,'F');doc.setTextColor(30);doc.text(c.c,104,yy);doc.text(num(c.v),172,yy,{align:'right'});doc.setFont('helvetica','bold');doc.text((c.v/tot*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',w-14,yy,{align:'right'});doc.setFont('helvetica','normal')});
+    doc.setTextColor(0)}
 }
 
 // ---------- ranking de dizimistas (assiduidade) ----------
@@ -1008,6 +1094,7 @@ function pdfRelatorio(){
   if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});const t=S.relTipo;
   if(t==='anual'){desenharUmaPagina(doc,d=>pdfAnualInto(d,S.anoRel));return oferecer(`Fluxo de caixa ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
+  if(t==='graficos'){desenharUmaPagina(doc,d=>pdfGraficosInto(d,S.anoRel));return oferecer(`Gráficos ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
   if(t==='dizimistas'){desenharUmaPagina(doc,d=>pdfDizimistasInto(d,S.anoRel));return oferecer(`Dizimistas ${S.anoRel}.pdf`,doc.output('arraybuffer'))}
   desenharUmaPagina(doc,d=>pdfMesInto(d,S.mesRel,t));
   oferecer(`Relatório ${t==='resumido'?'resumido':'analítico'} ${mesNome(S.mesRel).replace('/',' ')}.pdf`,doc.output('arraybuffer'));
@@ -1018,7 +1105,7 @@ function anosComDados(){return [...new Set(items.map(x=>x.mes.slice(0,4)))].sort
 function pacoteLista(o){
   const anos=o.ano==='todos'?anosComDados():[o.ano];const out=[];
   anos.forEach(a=>{const ms=mesesDoAno(a);if(!ms.length)return;
-    if(o.anual)out.push({k:'anual',a});if(o.diz)out.push({k:'diz',a});
+    if(o.anual)out.push({k:'anual',a});if(o.graf)out.push({k:'graf',a});if(o.diz)out.push({k:'diz',a});
     ms.forEach(m=>{if(o.res)out.push({k:'resumido',m});if(o.ana)out.push({k:'analitico',m})})});
   return out;
 }
@@ -1030,6 +1117,7 @@ function abrirPacote(){
     <label class="full">Período<select name="ano">${anos.map(a=>`<option value="${a}" ${a===def?'selected':''}>Ano de ${a}</option>`).join('')}${anos.length>1?'<option value="todos">Todos os anos</option>':''}</select></label>
     <div class="full" style="display:flex;flex-direction:column;gap:8px">
       <label class="check" style="margin:0"><input type="checkbox" name="anual" checked> Consolidado anual (resumo do ano)</label>
+      <label class="check" style="margin:0"><input type="checkbox" name="graf" checked> Gráficos do ano (entradas × saídas, saldo e despesas por categoria)</label>
       <label class="check" style="margin:0"><input type="checkbox" name="res" checked> Resumido de cada mês</label>
       <label class="check" style="margin:0"><input type="checkbox" name="ana" checked> Analítico de cada mês</label>
       <label class="check" style="margin:0"><input type="checkbox" name="diz"> Assiduidade dos dizimistas</label>
@@ -1037,7 +1125,7 @@ function abrirPacote(){
   </form>
   <p class="muted" id="pkInfo" style="font-size:13px;margin-top:10px"></p>
   <div class="mfoot"><button class="btn" id="pkC">Cancelar</button>${podeImprimir?'<button class="btn" id="pkI">Imprimir</button>':''}<button class="btn pri" id="pkP">Baixar PDF</button></div>`);
-  const f=$('#pkF');const opt=()=>({ano:f.ano.value,anual:f.anual.checked,res:f.res.checked,ana:f.ana.checked,diz:f.diz.checked});
+  const f=$('#pkF');const opt=()=>({ano:f.ano.value,anual:f.anual.checked,graf:f.graf.checked,res:f.res.checked,ana:f.ana.checked,diz:f.diz.checked});
   const info=()=>{const n=pacoteLista(opt()).length;$('#pkInfo').textContent=n?`${n} relatório(s) num único arquivo, cada um começando numa página nova.`:'Marque pelo menos uma opção.'};
   f.onchange=info;info();
   $('#pkC').onclick=closeModal;
@@ -1047,14 +1135,14 @@ function abrirPacote(){
 function pdfPacote(lista,o){
   if(!jsPDFok()){toast('Gerador de PDF não carregou');return}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
-  lista.forEach((r,i)=>{const f=d=>{if(r.k==='anual')pdfAnualInto(d,r.a);else if(r.k==='diz')pdfDizimistasInto(d,r.a);else pdfMesInto(d,r.m,r.k)};const k=escalaUmaPagina(f);if(i)doc.addPage();doc.__k=k;f(doc)});
+  lista.forEach((r,i)=>{const f=d=>{if(r.k==='anual')pdfAnualInto(d,r.a);else if(r.k==='graf')pdfGraficosInto(d,r.a);else if(r.k==='diz')pdfDizimistasInto(d,r.a);else pdfMesInto(d,r.m,r.k)};const k=escalaUmaPagina(f);if(i)doc.addPage();doc.__k=k;f(doc)});
   const tot=doc.getNumberOfPages();for(let p=1;p<=tot;p++){doc.setPage(p);doc.setFontSize(8);doc.setTextColor(120);doc.text(`Página ${p} de ${tot}`,doc.internal.pageSize.getWidth()-14,290,{align:'right'});doc.setTextColor(0)}
   const nome=o.ano==='todos'?'todos os anos':o.ano;
   oferecer(`Relatórios ${nome}.pdf`,doc.output('arraybuffer'));
 }
 function imprimirPacote(lista){
   let box=$('#pacotePrint');if(!box){box=document.createElement('div');box.id='pacotePrint';document.body.appendChild(box)}
-  box.innerHTML=lista.map(r=>r.k==='anual'?relAnual(r.a):r.k==='diz'?relDizimistas(r.a):r.k==='resumido'?relResumido(r.m):relAnalitico(r.m)).join('');marcarNegativos(box);
+  box.innerHTML=lista.map(r=>r.k==='anual'?relAnual(r.a):r.k==='graf'?relGraficos(r.a):r.k==='diz'?relDizimistas(r.a):r.k==='resumido'?relResumido(r.m):relAnalitico(r.m)).join('');marcarNegativos(box);
   closeModal();setTimeout(()=>imprimir(box),50);
 }
 function pdfRecibo(x){
