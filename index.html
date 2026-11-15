@@ -790,8 +790,7 @@ function relResumido(m){const r=resumo(m);
    <tr class="sub"><td>Saídas do mês</td><td class="n">${num(r.ts)}</td></tr>
    <tr class="sub"><td>Saldo do mês</td><td class="n">${num(r.sm)}</td></tr>
    <tr><td>Saldo depositado mês anterior</td><td class="n">${num(r.ant)}</td></tr>
-   <tr class="tot"><td>${r.fin<0?'Saldo em depósito (negativo)':'Saldo em depósito'}</td><td class="n">${num(r.fin)}</td></tr>
-   <tr><td>Dízimo dos dízimos a pagar em ${MESES[(+m.slice(5))%12]} (10% de dízimos + ofertas)</td><td class="n">${num(r.dizDiz)}</td></tr></tbody></table>
+   <tr class="tot"><td>${r.fin<0?'Saldo em depósito (negativo)':'Saldo em depósito'}</td><td class="n">${num(r.fin)}</td></tr></tbody></table>
   ${assinaturas()}</div>`}
 function relAnalitico(m){const r=resumo(m);const grupoE=CAT_E.map(c=>c.n).concat(Object.keys(r.ent).filter(k=>!CAT_E.some(c=>c.n===k)));
   const ents=r.it.filter(x=>x.tipo==='entrada');const cs=[...new Set(CAT_S.map(c=>c.n).concat(r.said.map(x=>x.categoria)))];
@@ -808,8 +807,7 @@ function relAnalitico(m){const r=resumo(m);const grupoE=CAT_E.map(c=>c.n).concat
   <table><tbody><tr><td>Saldo depositado mês anterior</td><td class="n" style="width:130px">${num(r.ant)}</td></tr>
    <tr><td>(+) Entradas do mês</td><td class="n">${num(r.te)}</td></tr><tr><td>(−) Saídas do mês</td><td class="n">${num(r.ts)}</td></tr>
    <tr class="tot"><td>Saldo em depósito</td><td class="n">${num(r.fin)}</td></tr>
-   <tr><td>Número de dizimistas no mês</td><td class="n">${r.nDiz}</td></tr>
-   <tr><td>Dízimo dos dízimos a pagar em ${MESES[(+m.slice(5))%12]} (10% de dízimos + ofertas)</td><td class="n">${num(r.dizDiz)}</td></tr></tbody></table>
+   <tr><td>Número de dizimistas no mês</td><td class="n">${r.nDiz}</td></tr></tbody></table>
   ${assinaturas()}</div>`;return h}
 function linhasAnuais(ano){return mesesComDados().filter(m=>m.startsWith(ano)).map(m=>{const r=resumo(m);return{m,diz:r.ent['Dízimos']||0,of:r.ent['Ofertas']||0,out:(r.ent['Ofertas especiais']||0)+(r.ent['Outras entradas']||0),te:r.te,ts:r.ts,sm:r.sm,fin:r.fin,n:r.nDiz,r}})}
 function resumoAno(ano){const L=linhasAnuais(ano);const ant=saldoAnterior(ano+'-01');const te=r2(L.reduce((a,x)=>a+x.te,0)),ts=r2(L.reduce((a,x)=>a+x.ts,0));return{ant,te,ts,res:r2(te-ts),fin:r2(ant+te-ts)}}
@@ -1073,7 +1071,7 @@ function pdfMesInto(doc,m,t){
     doc.autoTable({...AT,startY:y,head:[['Discriminação das despesas','Valor']],body:r.said.map(x=>[x.descricao,num(x.valor)]),foot:[['Total das despesas',num(r.ts)]],columnStyles:{1:{halign:'right',cellWidth:35}},footStyles:{fillColor:[234,238,246],textColor:[31,63,120]}});
     doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,head:[['Resumo simplificado','Valor']],columnStyles:{1:{halign:'right',cellWidth:35}},body:[
       ['Entrada em ofertas',num(r.ent['Ofertas'])],['Entrada em dízimos',num(r.ent['Dízimos'])],['Outros / votos / ofertas especiais',num((r.ent['Ofertas especiais']||0)+(r.ent['Outras entradas']||0))],
-      ['Número de dizimistas no mês',String(r.nDiz)],['ENTRADA DO MÊS',num(r.te)],['SAÍDAS DO MÊS',num(r.ts)],['SALDO DO MÊS',num(r.sm)],['Saldo depositado mês anterior',num(r.ant)],[r.fin<0?'SALDO EM DEPÓSITO (NEGATIVO)':'SALDO EM DEPÓSITO',num(r.fin)],['Dízimo dos dízimos a pagar em '+MESES[(+m.slice(5))%12]+' (10% de dízimos + ofertas)',num(r.dizDiz)]],
+      ['Número de dizimistas no mês',String(r.nDiz)],['ENTRADA DO MÊS',num(r.te)],['SAÍDAS DO MÊS',num(r.ts)],['SALDO DO MÊS',num(r.sm)],['Saldo depositado mês anterior',num(r.ant)],[r.fin<0?'SALDO EM DEPÓSITO (NEGATIVO)':'SALDO EM DEPÓSITO',num(r.fin)]],
       didParseCell:d=>{if(d.section==='body'&&d.row.index>=4&&d.row.index!==7&&d.row.index!==9)d.cell.styles.fontStyle='bold'}});
   }else{y=pdfCab(doc,m,'Relatório analítico');
     const body=[];const ents=r.it.filter(x=>x.tipo==='entrada');
@@ -1085,7 +1083,7 @@ function pdfMesInto(doc,m,t){
       b2.push([{content:c,colSpan:4,styles:{fontStyle:'bold',fillColor:[255,250,224]}}]);l.forEach(x=>b2.push([x.descricao,x.pessoa||'',x.recibo?String(x.recibo).padStart(4,'0'):'',num(x.valor)]));
       b2.push([{content:'Total '+c.toLowerCase(),colSpan:3,styles:{halign:'right'}},{content:num(l.reduce((a,x)=>a+(+x.valor||0),0)),styles:{fontStyle:'bold'}}])});
     doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,head:[['Saídas','Fornecedor','Recibo','Valor']],body:b2,foot:[['Total de saídas','','',num(r.ts)]],columnStyles:{2:{cellWidth:18},3:{halign:'right',cellWidth:30}},footStyles:{fillColor:[234,238,246],textColor:[31,63,120]}});
-    doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,body:[['Saldo depositado mês anterior',num(r.ant)],['(+) Entradas do mês',num(r.te)],['(−) Saídas do mês',num(r.ts)],['SALDO EM DEPÓSITO',num(r.fin)],['Número de dizimistas no mês',String(r.nDiz)],['Dízimo dos dízimos a pagar em '+MESES[(+m.slice(5))%12]+' (10% de dízimos + ofertas)',num(r.dizDiz)]],columnStyles:{1:{halign:'right',cellWidth:30}},
+    doc.autoTable({...AT,startY:doc.lastAutoTable.finalY+6,body:[['Saldo depositado mês anterior',num(r.ant)],['(+) Entradas do mês',num(r.te)],['(−) Saídas do mês',num(r.ts)],['SALDO EM DEPÓSITO',num(r.fin)],['Número de dizimistas no mês',String(r.nDiz)]],columnStyles:{1:{halign:'right',cellWidth:30}},
       didParseCell:d=>{if(d.row.index===3)d.cell.styles.fontStyle='bold'}});
   }
   pdfAss(doc,doc.lastAutoTable.finalY+4);
