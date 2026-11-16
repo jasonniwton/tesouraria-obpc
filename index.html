@@ -1104,7 +1104,7 @@ function pacoteLista(o){
   const anos=o.ano==='todos'?anosComDados():[o.ano];const out=[];
   anos.forEach(a=>{const ms=mesesDoAno(a);if(!ms.length)return;
     if(o.anual)out.push({k:'anual',a});if(o.graf)out.push({k:'graf',a});if(o.diz)out.push({k:'diz',a});
-    ms.forEach(m=>{if(o.res)out.push({k:'resumido',m});if(o.ana)out.push({k:'analitico',m})})});
+    ms.slice().reverse().forEach(m=>{if(o.res)out.push({k:'resumido',m});if(o.ana)out.push({k:'analitico',m})})});
   return out;
 }
 function abrirPacote(){
