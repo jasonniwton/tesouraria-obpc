@@ -123,7 +123,7 @@ table.t tfoot td{font-weight:650;border-bottom:0}
 .paper td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .paper tr.sub td{background:rgba(255,223,0,.12);font-weight:600}
 .paper tr.tot td{background:rgba(0,39,118,.08);color:#1f3f78;font-weight:700}
-.paper .sign{display:flex;justify-content:space-around;margin-top:46px;font-size:12.5px;text-align:center;gap:20px}
+.paper .sign{display:flex;justify-content:center;margin-top:46px;font-size:12.5px;text-align:center;gap:20px}
 .paper .sign div{border-top:1px solid #111;padding-top:4px;min-width:220px}
 .paper .city{margin-top:22px;font-size:13.5px}
 .paper .rec{border:1.5px solid rgba(0,156,59,.4);border-top:4px solid rgba(0,156,59,.45);background:linear-gradient(180deg,rgba(0,156,59,.04),transparent 40%);border-radius:6px;padding:20px 24px;margin-bottom:18px}
@@ -775,7 +775,7 @@ const hdCls=()=>cfg.logo?'hd lg':'hd';
 function cabecalho(m){return `<div class="${hdCls()}">${logoTag()}<span>${esc(cfg.convencao)}</span><b>${esc(cfg.igreja)}</b><span>${esc(cfg.endereco)}${cfg.cidade?' — '+esc(cfg.cidade):''}${cfg.cnpj?' — CNPJ '+esc(cfg.cnpj):''}</span></div>
  <div class="meta"><span><b>Relatório mensal:</b> ${mesNomeUp(m)}/${m.slice(0,4)}</span><span><b>Período:</b> 01/${m.slice(5)}/${m.slice(0,4)} a ${ultimoDia(m)}/${m.slice(5)}/${m.slice(0,4)}</span></div>`}
 function assinaturas(){const d=new Date();return `<div class="city">${esc(cfg.cidade||'')}, ${d.getDate()} de ${MESES[d.getMonth()].toLowerCase()} de ${d.getFullYear()}.</div>
- <div class="sign"><div>${esc(cfg.dirigente||'')}<br>Assinatura do dirigente</div><div>${esc(cfg.tesoureiro||'')}<br>Assinatura do tesoureiro</div></div>`}
+ <div class="sign"><div>${esc(cfg.dirigente||'')}<br>Assinatura do dirigente</div></div>`}
 function relResumido(m){const r=resumo(m);
   return `<div class="paper">${cabecalho(m)}
   <table><thead><tr><th>Discriminação das despesas</th><th style="width:150px;text-align:right">Valor</th></tr></thead><tbody>
@@ -1048,8 +1048,8 @@ function pdfCab(doc,m,titulo){pdfNeg(doc);
 }
 function pdfAss(doc,y){const w=doc.internal.pageSize.getWidth();const K=doc.__k||1;const h=39*K;if(y+h>290){doc.addPage();y=30}const d=new Date();
   doc.setFontSize(10*Math.max(K,.8));doc.text(`${cfg.cidade||''}, ${d.getDate()} de ${MESES[d.getMonth()].toLowerCase()} de ${d.getFullYear()}.`,14,y+10*K);
-  doc.line(20,y+34*K,95,y+34*K);doc.line(w-95,y+34*K,w-20,y+34*K);doc.setFontSize(9*Math.max(K,.8));
-  doc.text((cfg.dirigente?cfg.dirigente+' — ':'')+'Assinatura do dirigente',57.5,y+(34*K+4.5),{align:'center'});doc.text((cfg.tesoureiro?cfg.tesoureiro+' — ':'')+'Assinatura do tesoureiro',w-57.5,y+(34*K+4.5),{align:'center'})}
+  doc.line(w/2-40,y+34*K,w/2+40,y+34*K);doc.setFontSize(9*Math.max(K,.8));
+  doc.text((cfg.dirigente?cfg.dirigente+' — ':'')+'Assinatura do dirigente',w/2,y+(34*K+4.5),{align:'center'})}
 const AT={theme:'grid',styles:{fontSize:9,cellPadding:1.6,lineColor:[200,200,200]},headStyles:{fillColor:[224,242,230],textColor:[29,90,53],fontStyle:'bold'},lineColor:[217,230,221],margin:{left:14,right:14}};
 function pdfAnualInto(doc,ano){
   const right={halign:'right'};const y=pdfCab(doc,null,'Fluxo de caixa consolidado — '+ano);const L=linhasAnuais(ano);const s=k=>L.reduce((a,x)=>a+x[k],0);
